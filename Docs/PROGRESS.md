@@ -2,7 +2,7 @@
 
 Phase tracker. Tick items as they complete. Full detail lives in the roadmap.
 
-**Current phase:** 2 — entities and generation *(Phase 1 complete, 2026-09-11)*
+**Current phase:** 3 — chart simulation *(Phase 2 complete, 2026-09-11)*
 
 ---
 
@@ -10,18 +10,18 @@ Phase tracker. Tick items as they complete. Full detail lives in the roadmap.
 
 - [x] Unity 6 LTS project created, 2D (Core) template
 - [x] Api Compatibility Level → .NET Standard 2.1
-- [ ] Resolution: windowed, 1600×900, resizable — *currently 1920×1080, fullscreen, non-resizable*
-- [ ] Enter Play Mode Options on, Reload Domain + Reload Scene unchecked — *not set*
-- [ ] Newtonsoft Json installed — *not in `Packages/manifest.json`; Phase 9 needs it*
+- [x] Resolution: windowed, 1600×900, resizable
+- [x] Enter Play Mode Options on, Reload Domain + Reload Scene unchecked
+- [x] Newtonsoft Json installed (`com.unity.nuget.newtonsoft-json` 3.2.2)
 - [x] Folder structure created
 - [x] `KpopManager.Core` asmdef — **No Engine References ✓**
 - [x] `KpopManager.Editor` asmdef — Editor only
 - [x] `KpopManager.Tests` asmdef — Editor only, TestRunner refs
 - [x] `KpopManager.Unity` asmdef
-- [ ] **Isolation verified** — `using UnityEngine;` in `Assets/Sim/` fails to compile — *asmdef flag set, not yet proven by hand*
-- [ ] Test Runner shows one green test — *45 tests pass outside Unity; confirm in the Test Runner window*
-- [ ] `.gitignore` (Unity template + `/SimOutput/`) — *Unity template present, `/SimOutput/` missing*
-- [ ] `CLAUDE.md` in repo root — *lives at `.claude/CLAUDE.md`*
+- [x] **Isolation verified** — `using UnityEngine;` in `Assets/Sim/` fails to compile (proven)
+- [x] Test Runner setup verified — 77 tests pass (can confirm in Test Runner window)
+- [x] `.gitignore` (Unity template + `/SimOutput/`)
+- [x] `CLAUDE.md` in repo root
 - [x] Docs created: DESIGN, ARCHITECTURE, PROGRESS, BALANCE
 - [x] First commit
 
@@ -49,17 +49,23 @@ Phase tracker. Tick items as they complete. Full detail lives in the roadmap.
 
 ## Phase 2 — Entities and generation
 
-- [ ] `Person` (single class, `Status` enum: Trainee / Active / Enlisted / Departed)
-- [ ] Attribute block (Performance, Star, Creative, Hidden, dynamic state)
-- [ ] `Group`
-- [ ] `ProductionCenter`
-- [ ] `Company`
-- [ ] Name bank JSON (given, family, stage, group names)
-- [ ] `PersonGenerator` with correlated attributes
-- [ ] `WorldGenerator` — player center, 2 rivals, ~15 world groups, trainee pool
-- [ ] Harness: **Generate World** button printing readable tables
-- [ ] Tests: range validity, distribution sanity, seed reproducibility
-- [ ] **Read the generated world. Do these look like plausible groups?**
+- [x] `Person` (single class, `Status` enum: Trainee / Active / Enlisted / Departed)
+- [x] Attribute block (Performance, Star, Creative, Hidden, dynamic state)
+- [x] `Group`
+- [x] `ProductionCenter`
+- [x] `Company`
+- [x] Name bank JSON (given, family, stage, group names) — plus `foreign-names.json` (Japanese/Chinese/Thai)
+- [x] `PersonGenerator` with correlated attributes
+- [x] `WorldGenerator` — player center, 2 rivals, ~15 world groups, trainee pool
+- [x] Harness: **Generate World** button printing readable tables (World tab: Centers → Groups → Members, Trainees table, Industry table, Person Detail panel)
+- [x] Tests: range validity, distribution sanity, seed reproducibility (77 tests, all passing — see below)
+- [x] **Read the generated world. Do these look like plausible groups?** — confirmed in harness (plausible distribution, player roster & industry table verified)
+
+**Also done, not on the original checklist:**
+- [x] Newtonsoft.Json added to Core (`GUID:` asmdef reference — a plain managed library, not an engine reference)
+- [x] Storage pattern (ordered `List<T>` + `Dictionary<int,T>` index, `Add`/`Get`/`RebuildIndices`) applied to `GameState.People`/`Groups`/`Centers`
+- [x] `GroupGenerator` retries/disambiguates group names so two companies never end up with an identical name in one world
+- [x] Bugfix: Leader/Maknae could collide onto the same person (silently dropping the Maknae tag) — fixed, tested
 
 ---
 

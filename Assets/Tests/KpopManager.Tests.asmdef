@@ -4,7 +4,9 @@
     "references": [
         "KpopManager.Core",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "nunit.framework",
+        "GUID:8c4bfcb5b17948478ccb955bccff9652"
     ],
     "includePlatforms": [
         "Editor"
@@ -13,7 +15,8 @@
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "nunit.framework.dll"
+        "nunit.framework.dll",
+        "Newtonsoft.Json.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [

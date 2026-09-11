@@ -1,7 +1,9 @@
 {
     "name": "KpopManager.Core",
     "rootNamespace": "KpopManager.Core",
-    "references": [],
+    "references": [
+        "GUID:8c4bfcb5b17948478ccb955bccff9652"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

@@ -2,7 +2,8 @@
     "name": "KpopManager.Editor",
     "rootNamespace": "KpopManager.Editor",
     "references": [
-        "KpopManager.Core"
+        "KpopManager.Core",
+        "GUID:8c4bfcb5b17948478ccb955bccff9652"
     ],
     "includePlatforms": [
         "Editor"
