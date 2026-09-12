@@ -80,6 +80,15 @@ namespace KpopManager.Core
         public List<NameEntry> ThaiGivenNames { get; set; } = new List<NameEntry>();
 
         /// <summary>
+        /// Track titles are assembled as "<c>{Prefix} {Suffix}</c>" (Phase 3a,
+        /// <see cref="Systems.Generation"/> namespace's sibling <c>Systems.Chart.TrackGenerator</c>)
+        /// rather than stored whole — prefixCount × suffixCount combinations comfortably covers a
+        /// 50-year run without every title needing to be hand-typed individually.
+        /// </summary>
+        public List<string> TrackTitlePrefixes { get; set; } = new List<string>();
+        public List<string> TrackTitleSuffixes { get; set; } = new List<string>();
+
+        /// <summary>
         /// The given-name pool for a foreign nationality, or null if none is loaded for it.
         /// American and Other aren't covered by content JSON at this scope (~5% of the generated
         /// population combined) — <see cref="Systems.Generation.PersonGenerator"/> falls back to a

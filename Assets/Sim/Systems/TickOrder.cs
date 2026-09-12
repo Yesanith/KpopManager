@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using KpopManager.Core.Systems.Chart;
+using KpopManager.Core.Systems.Fandom;
 
 namespace KpopManager.Core.Systems
 {
@@ -40,10 +42,10 @@ namespace KpopManager.Core.Systems
                 //             name, the phase that replaces it                     step
                 new StubSystem("Training & aging", 5),                     //  1
                 new StubSystem("Scheduled activities", 4),                 //  2
-                new StubSystem("Track quality decay / new releases", 3),   //  3
-                new StubSystem("Chart simulation", 3),                     //  4
+                new ReleaseScheduler(),                                    //  3  (Phase 3a)
+                new ChartSystem(),                                         //  4  (Phase 3a)
                 new StubSystem("Music show results", 4),                   //  5
-                new StubSystem("Fandom update", 5),                        //  6
+                new FandomSystem(),                                        //  6  (Phase 3a, stand-in — see FandomSystem's remarks)
                 new StubSystem("Fatigue / health / morale", 4),            //  7
                 new StubSystem("Random events", 8),                        //  8
                 new StubSystem("Rival AI turns", 3),                       //  9

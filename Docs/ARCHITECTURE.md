@@ -2,7 +2,7 @@
 
 Technical reference. **Updated with every structural change** — new system, new entity, changed tick order.
 
-Last updated: *(Phase 2 — entities and world generation)*
+Last updated: *(Phase 3a — chart simulation and analysis tooling)*
 
 ---
 
@@ -35,14 +35,21 @@ Dependency direction is strictly one-way: **Editor / Tests / Unity → Core**. C
 ```
 Assets/Sim/
 ├── Core/                     — engine, state, primitives (Phase 1)
-├── Entities/                 — Person, Group, ProductionCenter, Company (Phase 2)
+├── Entities/                 — Person, Group, ProductionCenter, Company (Phase 2); Track, Release (Phase 3a)
 ├── Systems/
-│   └── Generation/           — PersonGenerator, GroupGenerator, WorldGenerator (Phase 2)
+│   ├── Generation/           — PersonGenerator, GroupGenerator, WorldGenerator (Phase 2)
+│   ├── Chart/                — ChartConfig, ChartSystem, DecayCurve, TrackGenerator,
+│   │                           ReleaseScheduler, TierSystem (Phase 3a)
+│   └── Fandom/               — FandomSystem: Phase 3 stand-in (Phase 3a)
 ├── Events/                   — (pending Phase 8)
-└── Data/                     — WorldData, WorldDataLoader: the shape of loaded content (Phase 2)
+├── Data/                     — WorldData, WorldDataLoader: the shape of loaded content (Phase 2/3a)
+└── AssemblyInfo.cs           — [InternalsVisibleTo("KpopManager.Tests")] (Phase 3a)
 
 Assets/SimData/                — the content JSON itself (not C#, not under Assets/Sim/)
-Assets/Editor/Generation/     — ContentLoader: reads Assets/SimData/*.json, hands Core a JSON string
+Assets/Editor/
+├── Generation/ContentLoader.cs  — reads Assets/SimData/*.json, hands Core a JSON string
+├── BalanceRunner.cs             — headless N-year runs, 6 balance metrics, CSV export (Phase 3a)
+└── BalanceMetrics.cs            — Gini / Pearson r / Spearman rho, dependency-free (Phase 3a)
 ```
 
 ### Core/
@@ -70,13 +77,18 @@ Assets/Editor/Generation/     — ContentLoader: reads Assets/SimData/*.json, ha
 | `ProductionCenter` | `IsPlayer`, `Budget`, `Goodwill`, `GroupIds`, `TraineeIds`, `Tier`. |
 | `BoardTarget`, `Board` | Empty placeholder shapes — Phase 6's `BoardSystem` gives them real fields. A concrete class rather than `object` so `Board.Targets` stays strongly typed. |
 | `Company` | `CenterIds` — the player's center plus its two siblings *in the same company*, per DESIGN.md's data model. Groups from other companies (the wider "industry") are **not** part of this list; they sit in `GameState.Centers` under their own separate centers. |
+| `Genre` | Flavour tag on `Track` (Pop/HipHop/RnB/EDM/Ballad/Rock/Trot). Not wired into any formula yet — generation only. |
+| `Track` | `Quality` (0–100, hidden — the truth the whole chart formula answers to), `ComposerId` (`Person.NoEntity` for an external, unmodelled composer), `Genre`, `IsTitleTrack`. |
+| `ReleaseType`, `Concept` | `ReleaseType`: Single/Mini/Full, flavour + promo scaling only so far. `Concept`: DESIGN.md's placeholder list verbatim (Cute/GirlCrush/Dark/Retro/Summer/Ballad/Experimental) — Phase 4 owns concept mechanics; this phase's `conceptFit` term is a flat 50 regardless of which concept is picked. |
+| `Release` | One comeback's full history: `WeeklyPositions`/`WeeklyPoints` (index = weeks since release, 0 = unranked), `PeakPosition`, `WeeksInTop10`, `WeeksCharted`, `TotalPoints`, `FandomSizeAtRelease` (a fixed snapshot, since the live value keeps moving). `MusicShowWins` stays 0 until Phase 4. `IsCharting`/`WeeksBelowFloor` (not in the original brief — added so `ChartSystem` can retire a release from active simulation once it's been off-chart for `ChartConfig.ChartRetirementWeeksBelowFloor` consecutive weeks, bounding the per-tick cost of a 50-year run instead of recomputing thousands of long-dead releases forever). |
+| `Group` (Phase 3a additions) | `ReleaseCadenceMonths` and `NextReleaseDate` — `ReleaseScheduler`'s memory of this group's comeback rhythm, seeded once by `GroupGenerator` at world-gen time (a stateless `ISimSystem` can't remember it itself). `WeeksSinceLastCharted` — `FandomSystem`'s memory of how long a group has gone quiet, for decay's inactivity grace period. |
 
 ### Data/
 | Type | Purpose |
 |---|---|
 | `NameEntry` | `{ Name, Gender }` — one given name. `Gender` carries a custom `GenderJsonConverter` so content JSON can use the compact `"F"`/`"M"` tag instead of spelling out `"Female"`/`"Male"` on ~750 entries. |
 | `WeightedName` | `{ Name, Weight }` — one surname with a relative (not normalised) frequency weight. |
-| `WorldData` | All loaded content as explicit named lists (not a dictionary — small fixed count, per CLAUDE.md's convention): `KoreanGivenNames`, `KoreanFamilyNames`, `StageNames`, `GroupNames`, `JapaneseGivenNames`, `ChineseGivenNames`, `ThaiGivenNames`. `GetForeignGivenNames(nationality)` returns the right list or null. |
+| `WorldData` | All loaded content as explicit named lists (not a dictionary — small fixed count, per CLAUDE.md's convention): `KoreanGivenNames`, `KoreanFamilyNames`, `StageNames`, `GroupNames`, `JapaneseGivenNames`, `ChineseGivenNames`, `ThaiGivenNames`, `TrackTitlePrefixes`/`TrackTitleSuffixes` (Phase 3a). `GetForeignGivenNames(nationality)` returns the right list or null. |
 | `WorldDataLoader` | `static WorldData FromJson(string json)` — the only door between raw text and `WorldData`. Takes a string, never a path, so Core stays file-I/O-free. |
 
 ### Systems/Generation/
@@ -86,14 +98,36 @@ Assets/Editor/Generation/     — ContentLoader: reads Assets/SimData/*.json, ha
 | `GroupGenerator` | Rolls a member count (4–9, weighted 5–7), builds a non-duplicated archetype list (the four unique primaries — MainVocal/MainRapper/MainDancer/Visual — always present once; Lead*/AllRounder fill the rest and may repeat), generates each member, tags exactly one Leader and one Maknae (**always two different people** — see the Phase 2 bugfix below), names the group (retried against every existing group name in the world so two companies never end up with an identical group name), and seeds `Fandom` from a tier-keyed mean. Registers everything it creates directly onto `GameState` as it goes. |
 | `WorldGenerator` | `Generate(state, data)` — one deterministic pass: `Company` + 3 centers (player + 2 siblings), the player's one Rookie/Rising group (debuted 1–2 years ago, then deliberately depressed below its tier roll — DESIGN.md's "you get hired" framing), 12 mixed-quality trainees, 2–3 groups per sibling center, and ~15 groups tier-pyramided (6/4/3/1/1) across 5 placeholder outside companies with debuts staggered up to 10 years back. Call once, right after building a fresh `GameState`, before any ticking. |
 
-### Systems/ (tick-order stubs, Phase 1)
+### Systems/Chart/ — every tunable number lives in ChartConfig
+
+**`ChartConfig`** is the single class every chart, scheduler, tier, and fandom-stand-in number lives in — plain public fields (not properties: this is a bag of knobs meant to be read/written in bulk), no constants scattered through logic, no magic numbers inline anywhere in `Systems/Chart/` or `Systems/Fandom/`. It hangs off `GameState.ChartConfig` so it serialises with a save and a balance run can swap it wholesale. `ComputeConfigHash()` reflects over every public field (sorted by name so reflection's unspecified enumeration order can't affect the hash), concatenates, and runs a hand-written deterministic FNV-1a — not `object.GetHashCode()`, which .NET doesn't guarantee stable across runtime versions. Every CSV `BalanceRunner` writes records this hash, so two exports can be checked for "were these actually the same config."
+
+All starting values are **deliberately untuned** — see the Phase 3a section of `Docs/PROGRESS.md` and the balance-sweep output pasted there. `Docs/BALANCE.md` stays empty until an actual tuning session starts.
+
+| Type | Tick step | Purpose |
+|---|---|---|
+| `DecayCurve` | *(pure function, no step)* | `Evaluate(weeksSinceRelease, quality, config)`: `exp(-k·weeks)`, `k` interpolated from quality between `DecayKMin`/`DecayKMax`. 1.0 at week 0, strictly decreasing, higher quality decays strictly slower at every week. **DESIGN flag:** a pure exponential can only ever fall from week 0 — real songs sometimes climb 2–3 weeks first as word of mouth builds. A gamma-shaped curve is the likely replacement; the interface (`weeksSinceRelease`, `quality`, config in, one multiplier out) is stable so that swap stays a one-file change. In `float`, an extreme input (very low quality, ~200+ weeks) legitimately underflows to exactly 0.0 — harmless, since `ChartSystem` retires a release from the floor long before then. |
+| `TrackGenerator` | *(pure-ish, no step)* | `Generate(rng, centerTier, composerSkill)` — the literal signature — plus a fuller overload taking `config`/`worldData`. Quality is `NextGaussian` around a tier- and composer-skill-driven mean. Titles: `"{Prefix} {Suffix}"` from `WorldData`'s word bank (2500 combinations from 50×50 words — see Content loading). Falls back to a synthetic `"Untitled ####"` title with no `WorldData`, matching `PersonGenerator`'s no-content path. |
+| `ChartSystem` | 4 — Chart simulation | Three passes per tick over every `Release` with `IsCharting == true`: (1) raw BuzzScore per release (quality/fit/tier/promo/fandom terms, no competition/decay/variance yet); (2) competition modifier (sums every *other* release's raw BuzzScore whose own `ReleaseDate` falls within `CompetitionWindowWeeks` of this one's — a debut-timing collision) × `DecayCurve` × random variance → `WeeklyPoints`; (3) rank everyone by `WeeklyPoints` with a fully deterministic comparer (points descending, ties broken by id — so sort-algorithm stability can never matter), assign positions 1..N, drop below `ChartFloorPoints` or past `ChartSize`, append one week of history. `conceptFit`/`trendFit` are flat 50 this phase — Phase 4 owns both; the term is wired in now so the shape doesn't change later. A release retires (`IsCharting = false`) after `ChartRetirementWeeksBelowFloor` consecutive weeks below floor, so a 50-year run doesn't keep recomputing thousands of long-dead releases every week. `ComputeRawBuzz`/`CompetitionModifier`/`NormalizeFandom` are `internal`, not `private` — `[InternalsVisibleTo("KpopManager.Tests")]` lets tests exercise the real formula instead of re-deriving it. |
+| `ReleaseScheduler` | 3 — Track quality decay / new releases | Drives every **non-player** group whose `NextReleaseDate` is due: generates a `Track` (composer is a real group member ~25% of the time, else an external baseline scaled by center tier), creates a `Release`, then schedules the next one — cadence in weeks (tier-interpolated, Rookie fastest/Legendary slowest, per DESIGN.md's real-industry pattern), nudged a few weeks for season (spring/autumn pulled earlier, midsummer pushed later — a coarse heuristic, not a real seasonal model) and, for centers in the player's own company only, nudged again to mildly avoid landing the same week as a sibling center's release (world groups outside the company don't coordinate at all). The player's own group is never touched — Phase 4's job. |
+| `TierSystem` | *(not a tick-order step — see below)* | `Evaluate(state, now)`: re-derives each due group's `GroupTier` from a rolling `TierWindowYears`-year window of chart peaks and weeks-in-top-10 (reconstructed from that group's own `Release.WeeklyPositions` history, dated by `ReleaseDate.AdvanceWeeks(index)`) plus current fandom size, weighted into one composite score compared against four ascending thresholds. Only re-evaluates a given group once every `TierEvaluationIntervalWeeks` weeks (gated on weeks-since-debut, so it's deterministic and doesn't depend on iteration order) — both to avoid weekly tier flicker and to avoid rescanning a group's whole release history every week for nothing. Logs every actual change (`LogCategory.Group`, `LogSeverity.Notable`) — nothing else in the game currently writes that combination, which is what lets `BalanceRunner` count tier changes by counting log entries. |
+
+**Why `TierSystem` isn't its own tick-order step:** DESIGN.md's twelve steps have no slot named for tier mobility, and reordering or extending that fixed spine is exactly the kind of large structural change CLAUDE.md says to report and confirm before making. `TierSystem` is a static, stateless function instead — `FandomSystem` calls `TierSystem.Evaluate` at the very end of its own tick (step 6), which is the point in the week where this week's chart results (step 4, already run) and this week's fandom update are both fresh.
+
+### Systems/Fandom/ — the Phase 3 stand-in
+
+| Type | Tick step | Purpose |
+|---|---|---|
+| `FandomSystem` | 6 — Fandom update | **Not the real FandomSystem — that's Phase 5.** The minimum needed so charts have something to snowball or decay against: sums each group's `WeeklyPoints` earned *this* calendar week (the last entry in every still-charting release's history, since `ChartSystem` always runs earlier in the same tick) and grows `Fandom.Size` with diminishing returns at scale (`growth ∝ 1 / (1 + Size / FandomGrowthSaturationSize)` — the bigger the existing fandom, the less the same points add to it). A group with no charting release this week increments `WeeksSinceLastCharted`; past `FandomInactivityGraceWeeks`, `Size` decays by a fixed multiplicative rate each week. `Sentiment` and `PublicAwareness` stay untouched until Phase 5. Calls `TierSystem.Evaluate` at the end of its own tick — see above. |
+
+### Systems/ (tick-order stubs, remaining)
 | Type | Tick step | Purpose |
 |---|---|---|
 | `TickOrder` | — | The single place the twelve-step order is written down. `BuildDefault()` returns the list every `SimEngine` is constructed with. Mirrors the table below; change both together. |
-| `StubSystem` | 1–12 | A named, registered step with no behaviour. Must never log and never draw from `GameState.Random` — a stub that consumed a draw would shift every later number, invalidating any seed balanced against it. Carries a `DuePhase` for documentation. |
-| `WeekCounterSystem` | *(prepended)* | Phase 1 diagnostic. Logs one `Info` line per week so the harness and the determinism test have real data. Still the only tick-order system with real behaviour — Phase 2 built entities and a world, not a tick-order system; delete this once a real one produces output. |
+| `StubSystem` | 1, 2, 5, 7–12 | A named, registered step with no behaviour. Must never log and never draw from `GameState.Random` — a stub that consumed a draw would shift every later number, invalidating any seed balanced against it. Carries a `DuePhase` for documentation. |
+| `WeekCounterSystem` | *(prepended)* | Phase 1 diagnostic. Logs one `Info` line per week so the harness and the determinism test have real data. |
 
-**Graduating a stub:** write the real system in its own file under `Systems/`, then swap one line in `TickOrder.BuildDefault()` — `new StubSystem("Chart simulation", 3)` becomes `new ChartSystem()`.
+**Graduating a stub:** write the real system in its own file under `Systems/`, then swap one line in `TickOrder.BuildDefault()` — this is exactly what Phase 3a did for steps 3, 4, and 6 (`new StubSystem("Chart simulation", 3)` became `new ChartSystem()`, etc.).
 
 ### A Phase 2 bugfix worth remembering
 
@@ -116,16 +150,18 @@ Written down in exactly one place in code: `Systems/TickOrder.BuildDefault()`. T
 | 0 | *Week counter* — Phase 1 diagnostic, prepended | 1 | **real** |
 | 1 | Training & aging | 5 | stub |
 | 2 | Scheduled activities | 4 | stub |
-| 3 | Track quality decay / new releases | 3 | stub |
-| 4 | **Chart simulation** | 3 | stub |
+| 3 | Track quality decay / new releases | 3 | **real** — `ReleaseScheduler` |
+| 4 | **Chart simulation** | 3 | **real** — `ChartSystem` |
 | 5 | Music show results | 4 | stub |
-| 6 | Fandom update | 5 | stub |
+| 6 | Fandom update | 5 | **real** (Phase 3 stand-in) — `FandomSystem`, also runs `TierSystem` |
 | 7 | Fatigue / health / morale | 4 | stub |
 | 8 | Random events | 8 | stub |
 | 9 | Rival AI turns | 3 | stub |
 | 10 | News generation | 8 | stub |
 | 11 | Cash settlement | 6 | stub |
 | 12 | Board target check | 6 | stub |
+
+Note step 6's "Phase" column still says 5 — that's DESIGN.md's *real* FandomSystem (Size/Sentiment/PublicAwareness, the full mechanic). Phase 3a's `FandomSystem` only grows/decays `Size`; it's occupying the slot early because charts need *something* to snowball against, not because Phase 5 moved.
 
 ---
 
@@ -141,10 +177,14 @@ GameState
  ├── Seed          ulong              // the run is reproducible from this alone
  ├── NextEntityId  int                // id allocator shared by every entity type
  ├── Company       Company            // CenterIds = player's center + its 2 siblings, per DESIGN.md
+ ├── ChartConfig   ChartConfig        // every chart/scheduler/tier/fandom tunable, in one place (Phase 3a)
  ├── People        List<Person>       // authoritative, ordered — iterate this
  ├── Groups        List<Group>        // authoritative, ordered — iterate this
  ├── Centers       List<ProductionCenter>  // authoritative, ordered — iterate this
- ├── [index] _peopleById, _groupsById, _centersById   // Dictionary<int,T>, [JsonIgnore], rebuilt by RebuildIndices()
+ ├── Tracks        List<Track>        // authoritative, ordered — iterate this (Phase 3a)
+ ├── Releases      List<Release>      // authoritative, ordered — iterate this (Phase 3a)
+ ├── [index] _peopleById, _groupsById, _centersById, _tracksById, _releasesById
+ │             // Dictionary<int,T>, [JsonIgnore], rebuilt by RebuildIndices()
  └── WorldData     WorldData          // [JsonIgnore] — loaded content, reloaded from disk each run, not saved
 
 Company
@@ -157,12 +197,22 @@ ProductionCenter (in GameState.Centers, looked up by id)
 
 Group (in GameState.Groups, looked up by id)
  ├── MemberIds: List<int>            // ordered — Positions[0] on each member is their primary archetype
+ ├── ReleaseIds: List<int>           // ordered (Phase 3a)
+ ├── ReleaseCadenceMonths, NextReleaseDate, WeeksSinceLastCharted   // ReleaseScheduler/FandomSystem's memory (Phase 3a)
  └── Fandom { Size: long, Sentiment: float, PublicAwareness: float }
 
 Person (in GameState.People, looked up by id)
  ├── GroupId, CenterId: int          // -1 = none
  ├── Positions: List<Position>       // usually 1–2: archetype, optionally + Leader or Maknae
  └── LanguageProficiency: Dictionary<Nationality,int>   // lookup-only, never iterated for a sim outcome
+
+Track (in GameState.Tracks, looked up by id) — Phase 3a
+ └── Quality: float                  // 0–100, hidden; everything in ChartSystem answers to this
+
+Release (in GameState.Releases, looked up by id) — Phase 3a
+ ├── WeeklyPositions: List<int>      // index = weeks since release; 0 = unranked that week
+ ├── WeeklyPoints: List<float>
+ └── IsCharting, WeeksBelowFloor     // ChartSystem's retirement bookkeeping
 ```
 
 ---
@@ -198,6 +248,11 @@ One more, added in Phase 2:
 
 - **Generation order is part of the seed contract.** `WorldGenerator.Generate` draws from `GameState.Random` in a fixed sequence (company → player group → trainees → rival groups → world groups), and each `GroupGenerator.Generate` call draws member count → archetypes → each member → leader/maknae → name → fandom, in that order. Reordering any of this changes every draw after the reorder point, exactly like reordering the tick order does. `WorldGeneratorTests.SameSeed_ProducesAnIdenticalWorld` guards it. This is also why the Harness's **Generate World** button always rebuilds the engine from the seed first (`NewGame()`) rather than generating into whatever state the window happens to be in — ticking before generating would have been a different, equally valid, but *different* deterministic sequence.
 
+Two more, added in Phase 3a:
+
+- **A fully deterministic chart ranking, even with ties.** `ChartSystem` ranks releases with a comparer that never actually ties — points descending, then release id ascending — so the outcome cannot depend on whichever sort algorithm `Array.Sort` happens to use internally. A comparer that leaves real ties on the table (e.g. comparing only on points, with two releases at the exact same value) would hand the outcome to sort-algorithm stability, which .NET doesn't guarantee.
+- **`ChartConfig.ComputeConfigHash()` sorts its reflected fields by name first.** `Type.GetFields()`'s enumeration order isn't documented or guaranteed stable, so hashing fields in *reflection* order would make the same config potentially hash differently across runtime versions — exactly the same category of hazard as `Dictionary` iteration order, just for a type's own members instead of a collection's.
+
 ---
 
 ## Editor harness
@@ -218,6 +273,31 @@ Tables are hand-built rows of `Label`s inside a plain (non-virtualised) `VisualE
 
 ---
 
+## Balance tooling (Phase 3a)
+
+`KpopManager/Run Balance Simulation` and `KpopManager/Run Balance Sweep` (`BalanceRunner`, `Assets/Editor/`) — headless analysis, no window, output straight to the Console and to `<project root>/SimOutput/` (sibling of `Assets/`, already in `.gitignore`).
+
+**Run Balance Simulation:** builds a world from seed 12345, runs 50 years, prints six metrics with a PASS/HIGH/LOW verdict against a target band, and writes two CSVs stamped with the seed, `ChartConfig.ComputeConfigHash()`, and a timestamp:
+- `releases_s{seed}_cfg{hash}_{timestamp}.csv` — one row per release (`ReleaseId, GroupId, GroupName, GroupTier, ReleaseYear, ReleaseWeek, TrackQuality, PromoSpend, FandomSizeAtRelease, PeakPosition, WeeksCharted, WeeksInTop10, TotalPoints`).
+- `chart_history_s{seed}_cfg{hash}_{timestamp}.csv` — one row per release per week, for plotting decay shapes.
+
+**Run Balance Sweep:** the same run across five fixed seeds (`11111, 22222, 33333, 44444, 55555` — not tuned, just different enough to catch a formula that only passes by luck on one seed), then a summary: mean, min–max range, and how many of the five seeds actually clear each metric's target band.
+
+**The six metrics** (`BalanceMetrics`: dependency-free `Gini`, `PearsonR`, `SpearmanRho`):
+
+| Metric | Computation | Target |
+|---|---|---|
+| #1 concentration | Gini over every group's own #1-chart-week count (including groups that never hit #1) | 0.45–0.70 |
+| Hit longevity | Mean `WeeksInTop10` across releases that reached top 10 at all | 4–12 |
+| Quality → Peak | Pearson r, `Track.Quality` vs `Release.PeakPosition` | −0.40 to −0.15 |
+| Quality → Longevity | Pearson r, `Track.Quality` vs `WeeksInTop10` | > 0.55 |
+| Tier mobility | Count of `LogCategory.Group`/`LogSeverity.Notable` entries (only `TierSystem` writes that combination) per decade | 8–20 |
+| Persistence | Spearman rho of every group's `Fandom.Size` at year 5 vs the final year | 0.3–0.7 |
+
+**This tool does not tune anything** — Phase 3a's job was building the instruments, not making the numbers good. See `Docs/PROGRESS.md`'s Phase 3a entry for the actual sweep output against the untuned starting values.
+
+---
+
 ## Content loading (Phase 2)
 
 Core has no file I/O, so it cannot read `Assets/SimData/*.json` itself. The split:
@@ -234,6 +314,7 @@ Content files (`Assets/SimData/`, not under `Assets/Sim/` — they aren't C# and
 | `stage-names.json` | `[string]`, single-word | 109 |
 | `group-names.json` | `[string]` | 150 |
 | `foreign-names.json` | `{ japanese: [...], chinese: [...], thai: [...] }`, each `[{ name, gender }]` | ~40 each |
+| `track-titles.json` (Phase 3a) | `{ prefixes: [string], suffixes: [string] }` | 50 × 50 = 2500 combinations |
 
 American/Other nationalities (~5% of the population combined) aren't covered by a content file — `PersonGenerator` falls back to a small embedded name list for those two rather than asking for two more JSON files over such a small slice.
 
@@ -247,3 +328,5 @@ The Korean given-name list is generated (not hand-typed one by one) by combining
 - Attribute storage: named fields vs enum-keyed array. Currently named fields for debuggability; revisit if the count grows past ~20.
 - **Girl groups vs boy groups vs co-ed** (DESIGN.md's own open question) — still unresolved. `Person.Gender` and `Group.Gender` exist and `GroupGenerator` keeps a group single-gender, but which gender (or a co-ed mix) is never decided; it's rolled 50/50 per group. Revisit before Phase 4 needs a definite answer for the player's own group.
 - Some Phase 2 trainees generate with a flat **0** in an attribute (a raw 15-year-old, tier 0, can roll below the clamp floor often enough to hit it exactly). Mathematically consistent with "mixed quality," but worth a look during balancing — it may read as more of a floor-effect artifact than an intentional "genuinely has nothing going for them yet" case.
+- **Untuned Phase 3a balance results** (seed 12345, 50 years; full 5-seed sweep in `Docs/PROGRESS.md`): Hit longevity, both quality correlations, tier mobility, and persistence all land inside their target bands out of the box — a promising sign the *shape* of the formula is right. **#1 concentration is the one metric that's consistently low** (Gini ~0.26–0.45 against a 0.45–0.70 target, failing on all 5 sweep seeds) — the game's #1 spots are currently spread more evenly across groups than DESIGN.md's "power law with upsets" calls for. The likely lever is `WeightFandom`/`FandomSurgeWeek0` (fandom is what should let a handful of top groups dominate #1 repeatedly) — first thing to try in the actual balancing session.
+- **`ReleaseScheduler`'s seasonality and sibling-avoidance nudges are coarse heuristics** (a fixed few-week push/pull), not a real model of either. Flagged in `ReleaseScheduler`'s own DESIGN comment; revisit if release timing needs to read as more than "roughly clustered."

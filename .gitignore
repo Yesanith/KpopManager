@@ -114,3 +114,6 @@ InitTestScene*.unity*
 /[Aa]ssets/[Ss]ceneDependencyCache*
 
 /SimOutput/
+
+/.claude/
+

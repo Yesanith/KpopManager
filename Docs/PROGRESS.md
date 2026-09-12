@@ -2,7 +2,7 @@
 
 Phase tracker. Tick items as they complete. Full detail lives in the roadmap.
 
-**Current phase:** 3 — chart simulation *(Phase 2 complete, 2026-09-11)*
+**Current phase:** 3b — the actual chart balance pass *(Phase 3a — simulation + tooling — complete, 2026-09-11)*
 
 ---
 
@@ -71,13 +71,30 @@ Phase tracker. Tick items as they complete. Full detail lives in the roadmap.
 
 ## Phase 3 — Chart simulation ★ critical
 
-- [ ] `Release`
-- [ ] `ChartSystem` (BuzzScore → weekly points → top 100)
-- [ ] `DecayCurve` (quality-dependent k)
-- [ ] `CompetitionModifier`
-- [ ] AI release scheduler
-- [ ] Chart history per release
-- [ ] Menu item: **Run 50-Year Simulation** → CSV to `/SimOutput/`
+### Phase 3a — simulation + analysis tooling *(complete, 2026-09-11)*
+
+Structure and instruments only, per the Phase 3a brief — **nothing was tuned.** All starting values in `ChartConfig` are exactly what the brief specified, untouched.
+
+- [x] `Release` (+ `Track`, both new entities under `Entities/`)
+- [x] `ChartConfig` — every tunable number, one class, plain public fields, `ComputeConfigHash()`
+- [x] `ChartSystem` (BuzzScore → weekly points → top 100)
+- [x] `DecayCurve` (quality-dependent k, pure function)
+- [x] `CompetitionModifier` (built into `ChartSystem`, exposed `internal` for direct testing)
+- [x] `TrackGenerator` (+ `track-titles.json` word bank, 2500 combinations)
+- [x] AI release scheduler (`ReleaseScheduler`) — cadence, seasonality, sibling avoidance
+- [x] `TierSystem` — rolling-window promotion/demotion, logged to `SimLog`
+- [x] Phase 3 `FandomSystem` stand-in — `Size` grows/decays; `Sentiment`/`PublicAwareness` untouched
+- [x] Chart history per release (`WeeklyPositions`/`WeeklyPoints`, retired once stale)
+- [x] Menu item: **Run Balance Simulation** → 6 metrics printed + CSV to `/SimOutput/`
+- [x] Menu item: **Run Balance Sweep** → same 6 metrics across 5 seeds, mean/range/pass-count
+- [x] Tests: determinism (50yr chart history), weight-sum robustness, decay monotonicity, zero-fandom validity, chart position invariants, competition modifier range, tier-change logging, 50yr-under-5s (all passing — 97 tests total, see below)
+- [ ] BALANCE.md updated throughout — **intentionally not started; no tuning happened this session**
+- [ ] **Gate: a 50-year history reads like a plausible industry.** — Not evaluated against this gate yet: that judgment belongs to the actual balancing session (Phase 3b), which is what the sweep output below exists to inform.
+
+**Full 5-seed sweep output, and the 3 longest-charting releases from seed 12345, are pasted in the Phase 3a chat report** (not duplicated here — see the balance tooling section of `ARCHITECTURE.md` for what the six metrics mean). Headline: everything passes on all 5 seeds except **#1 concentration**, which is low on all 5 (Gini 0.26–0.45 against a 0.45–0.70 target) — the first thing to try tuning next session.
+
+### Phase 3b — the actual balance pass *(not started)*
+
 - [ ] Balance: distribution of #1s is a power law with upsets
 - [ ] Balance: average top-10 longevity lands 4–12 weeks
 - [ ] Balance: quality correlates weakly with peak, strongly with longevity

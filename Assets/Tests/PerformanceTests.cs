@@ -36,16 +36,37 @@ namespace KpopManager.Tests
         }
 
         [Test]
-        public void FiftyYears_ProducesTheExpectedNumberOfEntries()
+        public void FiftyYears_ProducesAtLeastOneEntryPerWeek()
         {
             SimEngine engine = new SimEngine(1UL);
             engine.AdvanceYears(50);
 
-            // One line per week from WeekCounterSystem, and nothing else yet. When Phase 2 adds
-            // real output this expectation changes; that is the point at which the week counter
-            // should be deleted.
-            Assert.That(engine.State.Log.Count, Is.EqualTo(50 * SimDate.WeeksPerYear));
+            // WeekCounterSystem alone guarantees one line per week (2600 for 50 years); Phase 3a's
+            // ReleaseScheduler and TierSystem now add more on top of that whenever a group
+            // releases or changes tier, so the count is a floor, not an exact figure any more.
+            Assert.That(engine.State.Log.Count, Is.GreaterThanOrEqualTo(50 * SimDate.WeeksPerYear));
             Assert.That(engine.State.Date, Is.EqualTo(new SimDate(51, 1)));
+        }
+
+        [Test]
+        public void FiftyYearRun_WithAFullWorldAndChartSimulation_CompletesUnderFiveSeconds()
+        {
+            WorldData data = TestFixtures.BuildWorldData();
+
+            // Warm up so the measurement isn't dominated by JIT.
+            SimEngine warm = new SimEngine(1UL);
+            KpopManager.Core.Systems.Generation.WorldGenerator.Generate(warm.State, data);
+            warm.AdvanceYears(1);
+
+            SimEngine engine = new SimEngine(20250911UL);
+            KpopManager.Core.Systems.Generation.WorldGenerator.Generate(engine.State, data);
+
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            engine.AdvanceYears(50);
+            stopwatch.Stop();
+
+            Assert.That(stopwatch.Elapsed.TotalSeconds, Is.LessThan(5d),
+                "50-year run with chart simulation took " + stopwatch.Elapsed.TotalSeconds.ToString("F2") + " s.");
         }
     }
 }

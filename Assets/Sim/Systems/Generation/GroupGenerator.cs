@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using KpopManager.Core.Systems.Chart;
 
 namespace KpopManager.Core.Systems.Generation
 {
@@ -67,9 +68,31 @@ namespace KpopManager.Core.Systems.Generation
             }
 
             SeedFandom(rng, group, tier);
+            SeedReleaseSchedule(rng, group, tier, debutDate, state.ChartConfig);
             state.AddGroup(group);
 
             return group;
+        }
+
+        /// <summary>
+        /// Phase 3a: rolls this group's own comeback cadence (tier-interpolated between
+        /// <c>CadenceMinMonths</c> and <c>CadenceMaxMonths</c>, per DESIGN.md's "established acts
+        /// release less" pattern) and its first scheduled release date — offset randomly from
+        /// debut so groups don't all release in the same week. <see cref="Chart.ReleaseScheduler"/>
+        /// reads both fields; <c>GroupGenerator</c> only seeds their starting values.
+        /// </summary>
+        private static void SeedReleaseSchedule(SimRandom rng, Group group, int tier, SimDate debutDate, ChartConfig config)
+        {
+            float t = tier / 4f;
+            float meanCadence = config.CadenceMinMonths + (config.CadenceMaxMonths - config.CadenceMinMonths) * t;
+            float cadence = meanCadence + rng.NextGaussian(0f, config.CadenceJitterMonths);
+            if (cadence < 1f) cadence = 1f;
+
+            group.ReleaseCadenceMonths = cadence;
+
+            int cadenceWeeks = Math.Max(1, (int)(cadence * config.WeeksPerMonth));
+            int initialOffsetWeeks = rng.NextInt(0, cadenceWeeks);
+            group.NextReleaseDate = debutDate.AdvanceWeeks(initialOffsetWeeks);
         }
 
         /// <summary>

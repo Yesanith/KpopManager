@@ -6,8 +6,8 @@ using Newtonsoft.Json.Linq;
 namespace KpopManager.Editor.Generation
 {
     /// <summary>
-    /// Reads the five content JSON files under <c>Assets/SimData/</c>, combines them into one
-    /// JSON object shaped like <see cref="WorldData"/>, and hands the resulting string to
+    /// Reads the content JSON files under <c>Assets/SimData/</c>, combines them into one JSON
+    /// object shaped like <see cref="WorldData"/>, and hands the resulting string to
     /// <see cref="WorldDataLoader.FromJson"/>.
     /// </summary>
     /// <remarks>
@@ -27,6 +27,7 @@ namespace KpopManager.Editor.Generation
             JArray stageNames = JArray.Parse(ReadFile("stage-names.json"));
             JArray groupNames = JArray.Parse(ReadFile("group-names.json"));
             JObject foreignNames = JObject.Parse(ReadFile("foreign-names.json"));
+            JObject trackTitles = JObject.Parse(ReadFile("track-titles.json"));
 
             JObject combined = new JObject
             {
@@ -36,7 +37,9 @@ namespace KpopManager.Editor.Generation
                 ["GroupNames"] = groupNames,
                 ["JapaneseGivenNames"] = foreignNames["japanese"] ?? new JArray(),
                 ["ChineseGivenNames"] = foreignNames["chinese"] ?? new JArray(),
-                ["ThaiGivenNames"] = foreignNames["thai"] ?? new JArray()
+                ["ThaiGivenNames"] = foreignNames["thai"] ?? new JArray(),
+                ["TrackTitlePrefixes"] = trackTitles["prefixes"] ?? new JArray(),
+                ["TrackTitleSuffixes"] = trackTitles["suffixes"] ?? new JArray()
             };
 
             return WorldDataLoader.FromJson(combined.ToString(Formatting.None));

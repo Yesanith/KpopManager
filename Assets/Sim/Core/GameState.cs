@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using KpopManager.Core.Systems.Chart;
 using Newtonsoft.Json;
 
 namespace KpopManager.Core
@@ -47,15 +48,24 @@ namespace KpopManager.Core
         /// <summary>The company the player's center belongs to.</summary>
         public Company Company { get; set; }
 
+        /// <summary>Every tunable number behind the chart sim, scheduler, tier mobility and the
+        /// Phase 3 fandom stand-in. Hangs off the state so it serialises with a save and so a
+        /// balance run can swap it wholesale.</summary>
+        public ChartConfig ChartConfig { get; set; } = new ChartConfig();
+
         // ---- Entities: authoritative ordered lists -----------------------------------------
         public List<Person> People { get; set; } = new List<Person>();
         public List<Group> Groups { get; set; } = new List<Group>();
         public List<ProductionCenter> Centers { get; set; } = new List<ProductionCenter>();
+        public List<Track> Tracks { get; set; } = new List<Track>();
+        public List<Release> Releases { get; set; } = new List<Release>();
 
         // ---- Lookup indices — rebuilt from the lists above, never iterated for sim outcomes ----
         [JsonIgnore] private Dictionary<int, Person> _peopleById = new Dictionary<int, Person>();
         [JsonIgnore] private Dictionary<int, Group> _groupsById = new Dictionary<int, Group>();
         [JsonIgnore] private Dictionary<int, ProductionCenter> _centersById = new Dictionary<int, ProductionCenter>();
+        [JsonIgnore] private Dictionary<int, Track> _tracksById = new Dictionary<int, Track>();
+        [JsonIgnore] private Dictionary<int, Release> _releasesById = new Dictionary<int, Release>();
 
         /// <summary>
         /// Loaded content — name banks and the like. Not part of the save: it is reloaded from
@@ -93,6 +103,20 @@ namespace KpopManager.Core
             _centersById[center.Id] = center;
         }
 
+        /// <summary>Adds a track to both the authoritative list and the lookup index.</summary>
+        public void AddTrack(Track track)
+        {
+            Tracks.Add(track);
+            _tracksById[track.Id] = track;
+        }
+
+        /// <summary>Adds a release to both the authoritative list and the lookup index.</summary>
+        public void AddRelease(Release release)
+        {
+            Releases.Add(release);
+            _releasesById[release.Id] = release;
+        }
+
         /// <summary>Looks up a person by id, or null if there isn't one.</summary>
         public Person GetPerson(int id) => _peopleById.TryGetValue(id, out Person person) ? person : null;
 
@@ -101,6 +125,12 @@ namespace KpopManager.Core
 
         /// <summary>Looks up a center by id, or null if there isn't one.</summary>
         public ProductionCenter GetCenter(int id) => _centersById.TryGetValue(id, out ProductionCenter center) ? center : null;
+
+        /// <summary>Looks up a track by id, or null if there isn't one.</summary>
+        public Track GetTrack(int id) => _tracksById.TryGetValue(id, out Track track) ? track : null;
+
+        /// <summary>Looks up a release by id, or null if there isn't one.</summary>
+        public Release GetRelease(int id) => _releasesById.TryGetValue(id, out Release release) ? release : null;
 
         /// <summary>
         /// Rebuilds every lookup index from the authoritative lists. Call after construction and,
@@ -124,6 +154,18 @@ namespace KpopManager.Core
             for (int i = 0; i < Centers.Count; i++)
             {
                 _centersById[Centers[i].Id] = Centers[i];
+            }
+
+            _tracksById = new Dictionary<int, Track>(Tracks.Count);
+            for (int i = 0; i < Tracks.Count; i++)
+            {
+                _tracksById[Tracks[i].Id] = Tracks[i];
+            }
+
+            _releasesById = new Dictionary<int, Release>(Releases.Count);
+            for (int i = 0; i < Releases.Count; i++)
+            {
+                _releasesById[Releases[i].Id] = Releases[i];
             }
         }
     }

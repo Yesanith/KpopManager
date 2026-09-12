@@ -53,5 +53,31 @@ namespace KpopManager.Core
         /// <summary>DESIGN: single-gender, matching the real-world convention and mirroring <see cref="Core.Gender"/>
         /// on <see cref="Person"/>. Co-ed groups are a DESIGN.md open question, not modelled yet.</summary>
         public Gender Gender { get; set; }
+
+        // ---- Phase 3a: ReleaseScheduler state ----------------------------------------------
+        // Per CLAUDE.md's rule that a stateless system's memory lives on GameState, not on the
+        // system itself — ReleaseScheduler is a stateless ISimSystem, so the two things it needs
+        // to remember between ticks for each group live here.
+
+        /// <summary>This group's own comeback cadence in months, rolled once at world generation
+        /// from a tier-derived mean (see <c>ChartConfig.CadenceMinMonths</c>/<c>MaxMonths</c>).
+        /// Not player-adjustable — Phase 4 gives the player's own group a real comeback-timing
+        /// decision; this is the AI's fixed rhythm.</summary>
+        public float ReleaseCadenceMonths { get; set; }
+
+        /// <summary>The next date <see cref="Systems.Chart.ReleaseScheduler"/> should release this
+        /// group's next single, seeded at world generation so groups don't all debut in the same
+        /// week, then pushed forward by <see cref="ReleaseCadenceMonths"/> (plus jitter) after
+        /// every release.</summary>
+        public SimDate NextReleaseDate { get; set; }
+
+        /// <summary>
+        /// Consecutive weeks since this group last had a release actively charting — the Phase 3
+        /// <c>FandomSystem</c> stand-in's memory of "has this group gone quiet," since it's a
+        /// stateless <see cref="ISimSystem"/> and this can't live on it. Resets to 0 the moment a
+        /// release of theirs charts again; drives <see cref="ChartConfig.FandomInactivityGraceWeeks"/>
+        /// and decay.
+        /// </summary>
+        public int WeeksSinceLastCharted { get; set; }
     }
 }
