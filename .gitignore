@@ -115,5 +115,9 @@ InitTestScene*.unity*
 
 /SimOutput/
 
-/.claude/
+# Claude Code local state, but keep the project instructions tracked
+.claude/*
+!.claude/CLAUDE.md
 
+/.claude
+/.claude

@@ -4,29 +4,19 @@ using System.Text;
 
 namespace KpopManager.Core.Systems.Chart
 {
-    /// <summary>
-    /// Every tunable number behind the chart simulation, the release scheduler, tier mobility,
-    /// track generation, and the Phase 3 fandom stand-in — in one place, on purpose.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>If a balance session has to grep the codebase for a number, this class has failed.</b>
-    /// Plain public fields, not properties — this is a bag of knobs meant to be read and written
-    /// in bulk (by a balance sweep, eventually by a save file), not an object with behaviour.
-    /// No constants live in <c>ChartSystem</c>, <c>ReleaseScheduler</c>, <c>TierSystem</c>,
-    /// <c>FandomSystem</c>, <c>TrackGenerator</c> or <c>DecayCurve</c> — every one of them reads
-    /// from an instance of this class instead.
-    /// </para>
-    /// <para>
-    /// The starting values below are <b>deliberately untuned</b> — Phase 3a's job is to build the
-    /// instruments that measure whether they're wrong, not to make them right. See
-    /// <c>Docs/BALANCE.md</c> for the tuning log once that session starts.
-    /// </para>
-    /// <para>
-    /// Hangs off <see cref="GameState.ChartConfig"/> so it serialises with a save (Phase 9) and so
-    /// a balance run can swap the whole thing out between seeds.
-    /// </para>
-    /// </remarks>
+    // Every tunable number behind the chart simulation, the release scheduler, tier mobility,
+    // track generation, and the Phase 3 fandom stand-in — in one place, on purpose.
+    //
+    // If a balance session has to grep the codebase for a number, this class has failed. Plain
+    // public fields, not properties — this is a bag of knobs meant to be read and written in
+    // bulk (by a balance sweep, eventually by a save file), not an object with behaviour. No
+    // constants live in ChartSystem, ReleaseScheduler, TierSystem, FandomSystem, TrackGenerator
+    // or DecayCurve — every one of them reads from an instance of this class instead.
+    //
+    // The starting values below are deliberately untuned. See Docs/BALANCE.md for the tuning log.
+    //
+    // Hangs off GameState.ChartConfig so it serialises with a save (Phase 9) and so a balance run
+    // can swap the whole thing out between seeds.
     public sealed class ChartConfig
     {
         // -------------------------------------------------------------------------------
@@ -81,9 +71,9 @@ namespace KpopManager.Core.Systems.Chart
         public int ChartSize = 100;
         public float ChartFloorPoints = 0.5f;
 
-        /// <summary>Consecutive weeks a release must sit below <see cref="ChartFloorPoints"/>
-        /// before <c>ChartSystem</c> stops actively simulating it, so a 50-year run doesn't keep
-        /// recomputing thousands of long-dead releases every week.</summary>
+        // Consecutive weeks a release must sit below ChartFloorPoints before ChartSystem stops
+        // actively simulating it, so a 50-year run doesn't keep recomputing thousands of
+        // long-dead releases every week.
         public int ChartRetirementWeeksBelowFloor = 4;
 
         // -------------------------------------------------------------------------------
@@ -103,32 +93,38 @@ namespace KpopManager.Core.Systems.Chart
         public float CadenceMaxMonths = 8f;
         public float CadenceJitterMonths = 1f;
 
-        /// <summary>Multiplies release probability in spring/autumn windows (comeback seasons cluster lightly).</summary>
+        // Multiplies release probability in spring/autumn windows (comeback seasons cluster lightly).
         public float SeasonalityBoostSpringAutumn = 1.15f;
 
-        /// <summary>Multiplies release probability in the midsummer window.</summary>
+        // Multiplies release probability in the midsummer window.
         public float SeasonalityPenaltySummer = 0.85f;
 
-        /// <summary>How strongly sibling centers (same company as the player) nudge their release
-        /// date away from a same-week collision with another sibling center's release. 0 = no
-        /// avoidance, 1 = always push by a full week per colliding sibling.</summary>
+        // How strongly sibling centers (same company as the player) nudge their release date
+        // away from a same-week collision with another sibling center's release. 0 = no
+        // avoidance, 1 = always push by a full week per colliding sibling.
         public float SiblingCollisionAvoidance = 0.6f;
 
-        public float PromoSpendBaseByCenterTier = 8000f;
-        public float PromoSpendPerGroupTier = 6000f;
+        // Phase 3b fix 2d: multiplicative, not additive — spend = Base * CenterMult^centerOrdinal
+        // * GroupMult^groupOrdinal * jitter, so a Legendary group at a top-tier center outspends a
+        // Rookie at a poor one by an order of magnitude, not 3x.
+        public float PromoSpendBase = 4000f;
+        public float PromoSpendCenterTierMult = 1.9f;
+        public float PromoSpendGroupTierMult = 2.1f;
         public float PromoSpendJitterPct = 0.25f;
 
-        /// <summary>Divisor for normalising promo spend into the BuzzScore's 0–100 term — see
-        /// <c>ChartSystem.NormalizePromo</c>.</summary>
-        public float PromoSpendNormalizeDivisor = 40000f;
+        // DESIGN: a first-pass estimate, not a measured value — set so a Legendary group at the
+        // (currently near-universal, since almost every non-player center is CenterTier.Established)
+        // realistic top end of spend normalises near 100. Phase 3b's balance-sweep report includes
+        // the actual p5/p50/p95 PromoSpend so this can be set from real data next session instead.
+        public float PromoSpendNormalizeDivisor = 1600f;
 
-        /// <summary>Calendar-months-to-weeks conversion, shared by <c>GroupGenerator</c> (initial
-        /// cadence/next-release seeding) and <c>ReleaseScheduler</c> (advancing to the next release)
-        /// so the two never drift out of sync with each other.</summary>
+        // Calendar-months-to-weeks conversion, shared by GroupGenerator (initial cadence/
+        // next-release seeding) and ReleaseScheduler (advancing to the next release) so the two
+        // never drift out of sync with each other.
         public float WeeksPerMonth = 4.345f;
 
-        /// <summary>Chance an AI release credits an actual group member as composer (using their
-        /// own Songwriting/Composition) instead of an external, unmodelled one.</summary>
+        // Chance an AI release credits an actual group member as composer (using their own
+        // Songwriting/Composition) instead of an external, unmodelled one.
         public float ChanceGroupMemberComposes = 0.25f;
 
         public float ExternalComposerBaseSkill = 55f;
@@ -153,37 +149,92 @@ namespace KpopManager.Core.Systems.Chart
         public float TierScoreWeightWeeksInTop10 = 0.25f;
         public float TierScoreWeightFandom = 0.30f;
 
-        /// <summary>Ascending score thresholds a group must clear to sit at least at each tier.
-        /// Rookie is the floor and needs no threshold.</summary>
-        public float TierThresholdRising = 20f;
-        public float TierThresholdEstablished = 40f;
-        public float TierThresholdTopTier = 62f;
-        public float TierThresholdLegendary = 82f;
-
-        /// <summary>Weeks in top 10 within the window needed to max out that score component
-        /// (30 weeks over a 3-year window ≈ one strong hit's worth of top-10 weeks per year).</summary>
+        // Weeks in top 10 within the window needed to max out that score component (30 weeks
+        // over a 3-year window ~= one strong hit's worth of top-10 weeks per year).
         public float TierWeeksInTop10NormalizerWeeks = 30f;
+
+        // Phase 3b fix 2c: percentile ranking against the cohort of every currently-active group,
+        // not absolute score thresholds — an absolute threshold breaks the moment the chart's scale
+        // shifts (with the uncontested pre-fix chart, a deliberately mediocre group still scored
+        // 91.7, past the old TierThresholdLegendary of 82; nothing could be anything but Legendary).
+        // Top-down shares, should sum to 1.0; the remainder below all four is Rookie.
+        public float TierPctLegendary = 0.02f;
+        public float TierPctTopTier = 0.08f;
+        public float TierPctEstablished = 0.20f;
+        public float TierPctRising = 0.30f;
+
+        // Percentile margin a group must clear beyond a boundary before the tier actually
+        // changes, so a group sitting right on a threshold doesn't oscillate every evaluation.
+        public float TierHysteresisPct = 0.02f;
 
         // -------------------------------------------------------------------------------
         // Fandom stand-in (FandomSystem) — Phase 3 placeholder. Real FandomSystem is Phase 5;
         // this only grows Size from chart performance and decays it during inactivity, so charts
         // have something to snowball or fade against. Sentiment/PublicAwareness stay static.
         // -------------------------------------------------------------------------------
-        public float FandomGrowthPerPoint = 45f;
+        // Phase 3b fix 1: growth must scale with existing size or nothing compounds. The original
+        // additive-growth-vs-multiplicative-decay pairing converged every group toward the same
+        // fixed point regardless of history (measured max/min fandom ratio, seed 11111: 613x at
+        // year 1 collapsing to 3.1x by year 50) — the opposite of DESIGN.md's "rewards accumulated
+        // success." Growth is now a hybrid: a small absolute bootstrap (lets a brand-new group grow
+        // from nothing) plus a proportional term (the one that makes fandom actually compound).
+        // Absolute fans gained per chart point, independent of current size.
+        public float FandomBootstrapPerPoint = 12f;
 
-        /// <summary>The bigger a group's existing fandom, the less the same chart points add to
-        /// it — <c>growth *= 1 / (1 + Size / FandomGrowthSaturationSize)</c>. A Rookie group's
-        /// fandom (tens of thousands) grows close to linearly; a Legendary one's (millions)
-        /// visibly dampens.</summary>
-        public float FandomGrowthSaturationSize = 2_000_000f;
+        // Proportional growth: fans gained per chart point as a fraction of current size. This
+        // is what makes fandom compound.
+        public float FandomGrowthRatePerPoint = 0.0012f;
 
-        public float FandomDecayRateInactive = 0.998f;
+        // Size at which proportional growth is damped to half. A brake against runaway, not a
+        // leveller — DESIGN: must stay well above the fandom sizes the game actually reaches, or
+        // it reintroduces the convergence this fix removes.
+        public float FandomGrowthDampingSize = 25_000_000f;
+
+        // Renamed from FandomDecayRateInactive: 0.998 is a retention factor (98.8% of fans stay
+        // each inactive week), not a decay rate — the old name read as "decay 99.8% per week,"
+        // the opposite of what the field does.
+        public float FandomRetentionRateInactive = 0.998f;
         public int FandomInactivityGraceWeeks = 8;
 
-        /// <summary>Computes a stable hash of every field's current value, so two CSV exports can
-        /// be compared for "were these actually the same config." Deterministic FNV-1a over the
-        /// concatenated field values — not <see cref="object.GetHashCode"/>, which .NET does not
-        /// guarantee is stable across runtime versions.</summary>
+        // -------------------------------------------------------------------------------
+        // World scale (WorldGenerator) — Phase 3b fix 2a. Mean active releases per week was 19.5
+        // against ChartSize=100 with the original hardcoded 15-group world: the chart was never a
+        // fifth full, so "hit longevity 4-12" and the quality correlations were passing against no
+        // real scarcity. 200 is a starting estimate, not a spec — see Docs/PROGRESS.md for the
+        // measured result and whether it needs another pass.
+        // -------------------------------------------------------------------------------
+        public int WorldGroupCount = 200;
+
+        // Pyramid shares by tier, Rookie first through Legendary last. Should sum to 1.0; the
+        // remainder (if any) falls to Rookie.
+        public float WorldTierShareRookie = 0.46f;
+        public float WorldTierShareRising = 0.28f;
+        public float WorldTierShareEstablished = 0.17f;
+        public float WorldTierShareTopTier = 0.07f;
+        public float WorldTierShareLegendary = 0.02f;
+
+        public int WorldGroupDebutMaxYearsAgo = 15;
+
+        // -------------------------------------------------------------------------------
+        // Industry churn (Phase 3b fix 2b) — nothing previously disbanded a group or debuted a new
+        // one, so the "industry" was a fixed cast for 50 years. Scoped to world groups only (not
+        // the player's own company's 3 centers) — see IndustryChurnSystem's own DESIGN note.
+        // -------------------------------------------------------------------------------
+        public int NewWorldGroupsPerYearMin = 8;
+        public int NewWorldGroupsPerYearMax = 24;
+
+        // Matches DESIGN.md's seven-year contract wall.
+        public float DisbandContractYears = 7f;
+
+        // Consecutive years stuck at Rookie tier before a group disbands regardless of contract timing.
+        public int DisbandFailureYears = 3;
+
+        public float DisbandChanceAtContractEnd = 0.55f;
+
+        // Computes a stable hash of every field's current value, so two CSV exports can be
+        // compared for "were these actually the same config." Deterministic FNV-1a over the
+        // concatenated field values — not object.GetHashCode, which .NET does not guarantee is
+        // stable across runtime versions.
         public string ComputeConfigHash()
         {
             StringBuilder sb = new StringBuilder();

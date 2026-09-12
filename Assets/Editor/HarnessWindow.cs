@@ -10,21 +10,14 @@ using UnityEngine.UIElements;
 
 namespace KpopManager.Editor
 {
-    /// <summary>
-    /// The developer's interface to the simulation until Phase 7 builds a real one.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Drives a <see cref="SimEngine"/>: seed it, tick it, and read the <see cref="SimLog"/> it
-    /// produces. This window only ever reads simulation state; the one-way dependency rule holds
-    /// here exactly as it will in the runtime UI.
-    /// </para>
-    /// <para>
-    /// Built with UI Toolkit rather than IMGUI, both because the log needs a virtualised
-    /// <see cref="ListView"/> to stay responsive after a 50-year run, and because it is the API
-    /// Phase 7 uses.
-    /// </para>
-    /// </remarks>
+    // The developer's interface to the simulation until Phase 7 builds a real one.
+    //
+    // Drives a SimEngine: seed it, tick it, and read the SimLog it produces. This window only
+    // ever reads simulation state; the one-way dependency rule holds here exactly as it will in
+    // the runtime UI.
+    //
+    // Built with UI Toolkit rather than IMGUI, both because the log needs a virtualised ListView
+    // to stay responsive after a 50-year run, and because it is the API Phase 7 uses.
     public sealed class HarnessWindow : EditorWindow
     {
         private const int CategoryCount = 8;
@@ -241,10 +234,8 @@ namespace KpopManager.Editor
             return row;
         }
 
-        /// <summary>
-        /// Shows the registered tick order. Collapsed by default; it is here so the spine of the
-        /// project can be eyeballed against ARCHITECTURE.md without reading code.
-        /// </summary>
+        // Shows the registered tick order. Collapsed by default; it is here so the spine of the
+        // project can be eyeballed against ARCHITECTURE.md without reading code.
         private VisualElement BuildTickOrderFoldout()
         {
             Foldout foldout = new Foldout { text = "Tick order", value = false };
@@ -315,7 +306,7 @@ namespace KpopManager.Editor
             return button;
         }
 
-        /// <summary>Severity read as colour, so a 50-year log can be skimmed rather than read.</summary>
+        // Severity read as colour, so a 50-year log can be skimmed rather than read.
         private static Color ColorFor(LogSeverity severity)
         {
             bool pro = EditorGUIUtility.isProSkin;
@@ -378,8 +369,8 @@ namespace KpopManager.Editor
             return root;
         }
 
-        /// <summary>Rebuilds the engine from the current seed and regenerates the world for it — the
-        /// safest way to guarantee "same seed → identical world" regardless of any prior ticking.</summary>
+        // Rebuilds the engine from the current seed and regenerates the world for it — the
+        // safest way to guarantee "same seed -> identical world" regardless of any prior ticking.
         private void GenerateWorld()
         {
             NewGame();
@@ -470,9 +461,9 @@ namespace KpopManager.Editor
             return foldout;
         }
 
-        /// <summary>The visible attribute categories only (Performance/Star/Creative) — Hidden
-        /// stats including Potential are deliberately reserved for the Person Detail panel, per
-        /// DESIGN.md's own taxonomy of what "hidden" means.</summary>
+        // The visible attribute categories only (Performance/Star/Creative) — Hidden stats
+        // including Potential are deliberately reserved for the Person Detail panel, per
+        // DESIGN.md's own taxonomy of what "hidden" means.
         private VisualElement BuildTraineesTable(GameState state, ProductionCenter center)
         {
             VisualElement container = new VisualElement();
@@ -535,8 +526,8 @@ namespace KpopManager.Editor
             return container;
         }
 
-        /// <summary>Every group in the game, tier descending (Legendary first) then fandom size
-        /// descending within a tier.</summary>
+        // Every group in the game, tier descending (Legendary first) then fandom size descending
+        // within a tier.
         private VisualElement BuildIndustrySection(GameState state)
         {
             Foldout foldout = new Foldout { text = "Industry — all " + state.Groups.Count + " groups", value = true };
@@ -761,11 +752,9 @@ namespace KpopManager.Editor
             }
         }
 
-        /// <summary>
-        /// Rebuilds the engine after a domain reload by replaying the run from its seed: build,
-        /// regenerate the world if there was one, then re-tick to where it was. Exact, because the
-        /// sim is deterministic, and fast enough that even a 50-year run is unnoticeable.
-        /// </summary>
+        // Rebuilds the engine after a domain reload by replaying the run from its seed: build,
+        // regenerate the world if there was one, then re-tick to where it was. Exact, because the
+        // sim is deterministic, and fast enough that even a 50-year run is unnoticeable.
         private void EnsureEngine()
         {
             if (_engine != null || !_hasGame) return;
@@ -836,7 +825,7 @@ namespace KpopManager.Editor
         // Refresh
         // -----------------------------------------------------------------------------------
 
-        /// <summary>Re-filters the log, rebuilds the world tab, and repaints every readout.</summary>
+        // Re-filters the log, rebuilds the world tab, and repaints every readout.
         private void RefreshAll()
         {
             RefreshLog();
@@ -874,7 +863,7 @@ namespace KpopManager.Editor
             }
         }
 
-        /// <summary>Rebuilds the filtered view, then refreshes the status line that reports its size.</summary>
+        // Rebuilds the filtered view, then refreshes the status line that reports its size.
         private void RefreshLog()
         {
             _visible.Clear();

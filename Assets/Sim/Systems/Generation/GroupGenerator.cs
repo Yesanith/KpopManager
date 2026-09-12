@@ -4,38 +4,32 @@ using KpopManager.Core.Systems.Chart;
 
 namespace KpopManager.Core.Systems.Generation
 {
-    /// <summary>
-    /// Builds one fully-populated <see cref="Group"/>: rolls a member count, generates each member
-    /// via <see cref="PersonGenerator"/> with a non-duplicated primary archetype, tags a Leader and
-    /// a Maknae, names it, and seeds its <see cref="Fandom"/>.
-    /// </summary>
-    /// <remarks>
-    /// Unlike <see cref="PersonGenerator"/>, this registers everything it creates directly onto
-    /// <paramref name="state"/> as it goes — a group's members only make sense already linked to
-    /// their group, so there is no useful "just return the data" mode to offer here.
-    /// </remarks>
+    // Builds one fully-populated Group: rolls a member count, generates each member via
+    // PersonGenerator with a non-duplicated primary archetype, tags a Leader and a Maknae, names
+    // it, and seeds its Fandom.
+    //
+    // Unlike PersonGenerator, this registers everything it creates directly onto state as it
+    // goes — a group's members only make sense already linked to their group, so there is no
+    // useful "just return the data" mode to offer here.
     public static class GroupGenerator
     {
         private const int MinMembers = 4;
         private const int MaxMembers = 9;
 
-        /// <summary>Must appear at most once per group — the four singular performance archetypes.</summary>
+        // Must appear at most once per group — the four singular performance archetypes.
         private static readonly Position[] UniquePrimaries =
         {
             Position.MainVocal, Position.MainRapper, Position.MainDancer, Position.Visual
         };
 
-        /// <summary>May repeat to fill out a group beyond the four unique primaries.</summary>
+        // May repeat to fill out a group beyond the four unique primaries.
         private static readonly Position[] SecondaryPool =
         {
             Position.LeadVocal, Position.LeadRapper, Position.LeadDancer, Position.AllRounder
         };
 
-        /// <summary>
-        /// Generates and registers a group under <paramref name="centerId"/>.
-        /// </summary>
-        /// <param name="gender">Pin the group's gender, or leave null to roll one (50/50) — DESIGN.md's
-        /// girl-group/boy-group/co-ed question is still open, so nothing here decides it.</param>
+        // gender: pin the group's gender, or leave null to roll one (50/50) — DESIGN.md's
+        // girl-group/boy-group/co-ed question is still open, so nothing here decides it.
         public static Group Generate(GameState state, int centerId, int tier, SimDate debutDate, Gender? gender = null)
         {
             SimRandom rng = state.Random;
@@ -74,13 +68,11 @@ namespace KpopManager.Core.Systems.Generation
             return group;
         }
 
-        /// <summary>
-        /// Phase 3a: rolls this group's own comeback cadence (tier-interpolated between
-        /// <c>CadenceMinMonths</c> and <c>CadenceMaxMonths</c>, per DESIGN.md's "established acts
-        /// release less" pattern) and its first scheduled release date — offset randomly from
-        /// debut so groups don't all release in the same week. <see cref="Chart.ReleaseScheduler"/>
-        /// reads both fields; <c>GroupGenerator</c> only seeds their starting values.
-        /// </summary>
+        // Phase 3a: rolls this group's own comeback cadence (tier-interpolated between
+        // CadenceMinMonths and CadenceMaxMonths, per DESIGN.md's "established acts release less"
+        // pattern) and its first scheduled release date — offset randomly from debut so groups
+        // don't all release in the same week. ReleaseScheduler reads both fields; GroupGenerator
+        // only seeds their starting values.
         private static void SeedReleaseSchedule(SimRandom rng, Group group, int tier, SimDate debutDate, ChartConfig config)
         {
             float t = tier / 4f;
@@ -95,13 +87,11 @@ namespace KpopManager.Core.Systems.Generation
             group.NextReleaseDate = debutDate.AdvanceWeeks(initialOffsetWeeks);
         }
 
-        /// <summary>
-        /// Picks a group name that isn't already in use elsewhere in <paramref name="state"/> —
-        /// two unrelated companies both running a group called "Ivory Tower" reads as a generator
-        /// bug, not a coincidence, so a straight <c>rng.Pick</c> isn't enough once the world has a
-        /// few dozen groups in it. Retries a bounded number of times, then falls back to a
-        /// numbered suffix rather than looping forever if the pool is ever exhausted.
-        /// </summary>
+        // Picks a group name that isn't already in use elsewhere in state — two unrelated
+        // companies both running a group called "Ivory Tower" reads as a generator bug, not a
+        // coincidence, so a straight rng.Pick isn't enough once the world has a few dozen groups
+        // in it. Retries a bounded number of times, then falls back to a numbered suffix rather
+        // than looping forever if the pool is ever exhausted.
         private static string PickGroupName(SimRandom rng, WorldData data, GameState state)
         {
             if (data == null || data.GroupNames.Count == 0) return "Unnamed Group " + (state.Groups.Count + 1);
@@ -130,11 +120,9 @@ namespace KpopManager.Core.Systems.Generation
             return false;
         }
 
-        /// <summary>
-        /// DESIGN: average of two uniform draws over [4,9] — a cheap way to bias toward 5–7
-        /// without a real triangular distribution. Simple, deterministic, revisit if balancing
-        /// wants a sharper peak.
-        /// </summary>
+        // DESIGN: average of two uniform draws over [4,9] — a cheap way to bias toward 5-7
+        // without a real triangular distribution. Simple, deterministic, revisit if balancing
+        // wants a sharper peak.
         private static int RollMemberCount(SimRandom rng)
         {
             int a = rng.NextInt(MinMembers, MaxMembers + 1);
@@ -142,10 +130,9 @@ namespace KpopManager.Core.Systems.Generation
             return (a + b) / 2;
         }
 
-        /// <summary>Builds one archetype per member: the four unique primaries first (every group
-        /// has at least <see cref="MinMembers"/> = 4, so all four always fit), then secondary
-        /// archetypes (which may repeat) for the rest, then shuffles so archetype doesn't
-        /// correlate with member index.</summary>
+        // Builds one archetype per member: the four unique primaries first (every group has at
+        // least MinMembers = 4, so all four always fit), then secondary archetypes (which may
+        // repeat) for the rest, then shuffles so archetype doesn't correlate with member index.
         private static List<Position> BuildArchetypeList(SimRandom rng, int memberCount)
         {
             List<Position> archetypes = new List<Position>(memberCount);
@@ -173,7 +160,7 @@ namespace KpopManager.Core.Systems.Generation
 
             for (int i = 0; i < archetypes.Count; i++)
             {
-                // DESIGN: debut ages spread 16–23 — matches typical K-pop debut age ranges.
+                // DESIGN: debut ages spread 16-23 — matches typical K-pop debut age ranges.
                 // Revisit during balancing.
                 int debutAge = 16 + rng.NextInt(0, 8);
                 int birthYear = debutYear - debutAge;
@@ -191,18 +178,17 @@ namespace KpopManager.Core.Systems.Generation
             return members;
         }
 
-        /// <summary>
-        /// Leader: highest combined Professionalism + WorkEthic + Charisma — a proxy for "who the
-        /// company trusts to represent the group publicly." Maknae: the youngest member (latest
-        /// birth year), chosen from everyone except the leader. Both are added as an extra
-        /// <see cref="Position"/> tag alongside the member's existing performance archetype.
-        /// DESIGN: the leader and maknae are always two different people — a group's designated
-        /// leader being simultaneously its babied youngest member would collapse two distinct
-        /// mechanics into one, and isn't how real groups are structured. If the youngest member
-        /// also happens to be the best leader candidate, maknae falls back to the next-youngest
-        /// rather than the leader tag being skipped or doubled up. Revisit Leader's scoring
-        /// formula during balancing — Ambition or age might read better than Charisma.
-        /// </summary>
+        // Leader: highest combined Professionalism + WorkEthic + Charisma — a proxy for "who the
+        // company trusts to represent the group publicly." Maknae: the youngest member (latest
+        // birth year), chosen from everyone except the leader. Both are added as an extra
+        // Position tag alongside the member's existing performance archetype.
+        //
+        // DESIGN: the leader and maknae are always two different people — a group's designated
+        // leader being simultaneously its babied youngest member would collapse two distinct
+        // mechanics into one, and isn't how real groups are structured. If the youngest member
+        // also happens to be the best leader candidate, maknae falls back to the next-youngest
+        // rather than the leader tag being skipped or doubled up. Revisit Leader's scoring
+        // formula during balancing — Ambition or age might read better than Charisma.
         private static void TagLeaderAndMaknae(List<Person> members)
         {
             Person leader = members[0];
@@ -235,11 +221,9 @@ namespace KpopManager.Core.Systems.Generation
             return person.Professionalism + person.WorkEthic + person.Charisma;
         }
 
-        /// <summary>
-        /// DESIGN: fandom size scales roughly geometrically with tier so the gap between a Rookie
-        /// and a Legendary group is large, matching the power-law shape DESIGN.md's chart-formula
-        /// validation targets. Heavily revisited once Phase 3's chart sim gives real signal.
-        /// </summary>
+        // DESIGN: fandom size scales roughly geometrically with tier so the gap between a Rookie
+        // and a Legendary group is large, matching the power-law shape DESIGN.md's chart-formula
+        // validation targets. Heavily revisited once Phase 3's chart sim gives real signal.
         private static void SeedFandom(SimRandom rng, Group group, int tier)
         {
             long[] tierSizeMean = { 8_000L, 40_000L, 150_000L, 600_000L, 2_500_000L };

@@ -3,23 +3,19 @@ using System.Collections.Generic;
 
 namespace KpopManager.Core.Systems.Chart
 {
-    /// <summary>
-    /// Tick step 4: computes every actively-charting release's BuzzScore, applies competition and
-    /// decay, ranks the result, and appends one week of history to each release.
-    /// </summary>
-    /// <remarks>
-    /// Three passes per tick, in this order, because each depends on the previous being complete
-    /// for <i>every</i> release before it can run:
-    /// <list type="number">
-    /// <item>Raw BuzzScore per release (quality/fit/tier/promo/fandom terms — no competition, no
-    /// decay, no variance yet).</item>
-    /// <item>Competition modifier per release, which needs every other release's raw BuzzScore to
-    /// sum against, then decay and variance applied to produce this week's <c>WeeklyPoints</c>.</item>
-    /// <item>Rank everyone by <c>WeeklyPoints</c>, assign positions, and record history.</item>
-    /// </list>
-    /// <c>conceptFit</c> and <c>trendFit</c> are flat 50 this phase — Phase 4 owns both; the term
-    /// is wired in now so the shape doesn't change later, only the two functions computing them.
-    /// </remarks>
+    // Tick step 4: computes every actively-charting release's BuzzScore, applies competition and
+    // decay, ranks the result, and appends one week of history to each release.
+    //
+    // Three passes per tick, in this order, because each depends on the previous being complete
+    // for every release before it can run:
+    //   1. Raw BuzzScore per release (quality/fit/tier/promo/fandom terms — no competition, no
+    //      decay, no variance yet).
+    //   2. Competition modifier per release, which needs every other release's raw BuzzScore to
+    //      sum against, then decay and variance applied to produce this week's WeeklyPoints.
+    //   3. Rank everyone by WeeklyPoints, assign positions, and record history.
+    //
+    // conceptFit and trendFit are flat 50 this phase — Phase 4 owns both; the term is wired in
+    // now so the shape doesn't change later, only the two functions computing them.
     public sealed class ChartSystem : ISimSystem
     {
         public string Name => "Chart simulation";
@@ -90,9 +86,9 @@ namespace KpopManager.Core.Systems.Chart
             return active;
         }
 
-        /// <summary>Internal, not private: exercised directly by <c>ChartSystemTests</c> so the
-        /// "zero fandom and zero promo still produces a valid, non-negative score" invariant is
-        /// tested against the real formula, not a re-derivation of it.</summary>
+        // Internal, not private: exercised directly by ChartSystemTests so the "zero fandom and
+        // zero promo still produces a valid, non-negative score" invariant is tested against the
+        // real formula, not a re-derivation of it.
         internal static float ComputeRawBuzz(GameState state, Release release, int weeksSince, ChartConfig config)
         {
             Track track = state.GetTrack(release.TitleTrackId);
@@ -121,12 +117,13 @@ namespace KpopManager.Core.Systems.Chart
             return buzz < 0f ? 0f : buzz;
         }
 
-        /// <summary>Sums every OTHER release's raw BuzzScore whose own <see cref="Release.ReleaseDate"/>
-        /// falls within <see cref="ChartConfig.CompetitionWindowWeeks"/> of this release's — a
-        /// debut-timing collision, per DESIGN.md's "drop against a major group's comeback and you
-        /// get buried" — then applies <c>1 / (1 + c * sumOfRivalBuzz / 100)</c>.</summary>
-        /// <summary>Internal, not private: exercised directly by <c>ChartSystemTests</c> so the
-        /// "(0,1] always" invariant is tested against the real formula.</summary>
+        // Sums every OTHER release's raw BuzzScore whose own ReleaseDate falls within
+        // ChartConfig.CompetitionWindowWeeks of this release's — a debut-timing collision, per
+        // DESIGN.md's "drop against a major group's comeback and you get buried" — then applies
+        // 1 / (1 + c * sumOfRivalBuzz / 100).
+        //
+        // Internal, not private: exercised directly by ChartSystemTests so the "(0,1] always"
+        // invariant is tested against the real formula.
         internal static float CompetitionModifier(List<Release> active, float[] rawBuzz, int index, ChartConfig config)
         {
             Release release = active[index];
@@ -150,7 +147,7 @@ namespace KpopManager.Core.Systems.Chart
             return modifier > 1f ? 1f : modifier;
         }
 
-        /// <summary>Rookie..Legendary mapped linearly onto 0–100.</summary>
+        // Rookie..Legendary mapped linearly onto 0-100.
         private static float TierScore(GroupTier tier)
         {
             return (int)tier / 4f * 100f;
@@ -164,8 +161,8 @@ namespace KpopManager.Core.Systems.Chart
             return Clamp01To100(normalized);
         }
 
-        /// <summary>Internal, not private: <c>TierSystem</c> reuses this exact formula for its own
-        /// fandom score component so the two never drift out of sync with each other.</summary>
+        // Internal, not private: TierSystem reuses this exact formula for its own fandom score
+        // component so the two never drift out of sync with each other.
         internal static float NormalizeFandom(long fandomSize, ChartConfig config)
         {
             if (fandomSize <= 0 || config.FandomLogDivisor <= 0f) return 0f;
@@ -175,8 +172,8 @@ namespace KpopManager.Core.Systems.Chart
             return Clamp01To100(normalized);
         }
 
-        /// <summary>Fandom's surge multiplier: <see cref="ChartConfig.FandomSurgeWeek0"/> at week 0,
-        /// decaying linearly to 1.0 by <see cref="ChartConfig.FandomSurgeDecayWeeks"/>.</summary>
+        // Fandom's surge multiplier: ChartConfig.FandomSurgeWeek0 at week 0, decaying linearly
+        // to 1.0 by ChartConfig.FandomSurgeDecayWeeks.
         private static float SurgeMultiplier(int weeksSince, ChartConfig config)
         {
             if (weeksSince <= 0) return config.FandomSurgeWeek0;
@@ -213,9 +210,9 @@ namespace KpopManager.Core.Systems.Chart
             }
         }
 
-        /// <summary>A full deterministic ordering (points descending, ties broken by index) so the
-        /// result never depends on whichever sort algorithm <see cref="Array.Sort"/> happens to use —
-        /// with no ties left in the comparer, algorithm stability is irrelevant.</summary>
+        // A full deterministic ordering (points descending, ties broken by index) so the result
+        // never depends on whichever sort algorithm Array.Sort happens to use — with no ties left
+        // in the comparer, algorithm stability is irrelevant.
         private static int[] SortIndicesDescending(float[] points, int count)
         {
             int[] indices = new int[count];

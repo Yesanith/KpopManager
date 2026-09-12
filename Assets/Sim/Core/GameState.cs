@@ -4,53 +4,43 @@ using Newtonsoft.Json;
 
 namespace KpopManager.Core
 {
-    /// <summary>
-    /// The entire mutable world, as a plain data graph.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// No system references, no delegates, no events, no circular parent pointers. Entities
-    /// reference each other by <c>int Id</c> rather than by object reference, so that the whole
-    /// graph serialises cleanly with Newtonsoft in Phase 9.
-    /// </para>
-    /// <para>
-    /// Systems read and write this and nothing else. If a system needs to remember something
-    /// between ticks, that something belongs here, not in a field on the system.
-    /// </para>
-    /// <para>
-    /// <b>Storage pattern, applied consistently for every entity type:</b> an ordered
-    /// <c>List&lt;T&gt;</c> is the authoritative collection — iterate it, and only it, whenever
-    /// order could affect a sim outcome — plus a <c>Dictionary&lt;int, T&gt;</c> lookup index
-    /// rebuilt from that list, used only for by-id access. The dictionary is never iterated for a
-    /// sim outcome; hash order is not guaranteed stable and would silently break determinism.
-    /// </para>
-    /// </remarks>
+    // The entire mutable world, as a plain data graph.
+    //
+    // No system references, no delegates, no events, no circular parent pointers. Entities
+    // reference each other by int Id rather than by object reference, so that the whole graph
+    // serialises cleanly with Newtonsoft in Phase 9.
+    //
+    // Systems read and write this and nothing else. If a system needs to remember something
+    // between ticks, that something belongs here, not in a field on the system.
+    //
+    // Storage pattern, applied consistently for every entity type: an ordered List<T> is the
+    // authoritative collection — iterate it, and only it, whenever order could affect a sim
+    // outcome — plus a Dictionary<int, T> lookup index rebuilt from that list, used only for
+    // by-id access. The dictionary is never iterated for a sim outcome; hash order is not
+    // guaranteed stable and would silently break determinism.
     public class GameState
     {
-        /// <summary>The current week. Advanced by <see cref="SimEngine"/> after every system has ticked.</summary>
+        // Advanced by SimEngine after every system has ticked.
         public SimDate Date { get; set; }
 
-        /// <summary>The one and only generator. Every random draw in the sim comes from here.</summary>
+        // Every random draw in the sim comes from here.
         public SimRandom Random { get; set; }
 
-        /// <summary>Everything the simulation has said so far.</summary>
         public SimLog Log { get; set; }
 
-        /// <summary>The seed this run was created from. Kept so a save can report and reproduce it.</summary>
+        // Kept so a save can report and reproduce it.
         public ulong Seed { get; set; }
 
-        /// <summary>
-        /// Id allocator shared by every entity type — people, groups and centers all draw from
-        /// this one counter, so ids are unique across the whole game, not just within a type.
-        /// </summary>
+        // Id allocator shared by every entity type — people, groups and centers all draw from
+        // this one counter, so ids are unique across the whole game, not just within a type.
         public int NextEntityId { get; set; }
 
-        /// <summary>The company the player's center belongs to.</summary>
+        // The company the player's center belongs to.
         public Company Company { get; set; }
 
-        /// <summary>Every tunable number behind the chart sim, scheduler, tier mobility and the
-        /// Phase 3 fandom stand-in. Hangs off the state so it serialises with a save and so a
-        /// balance run can swap it wholesale.</summary>
+        // Every tunable number behind the chart sim, scheduler, tier mobility and the Phase 3
+        // fandom stand-in. Hangs off the state so it serialises with a save and so a balance run
+        // can swap it wholesale.
         public ChartConfig ChartConfig { get; set; } = new ChartConfig();
 
         // ---- Entities: authoritative ordered lists -----------------------------------------
@@ -67,14 +57,11 @@ namespace KpopManager.Core
         [JsonIgnore] private Dictionary<int, Track> _tracksById = new Dictionary<int, Track>();
         [JsonIgnore] private Dictionary<int, Release> _releasesById = new Dictionary<int, Release>();
 
-        /// <summary>
-        /// Loaded content — name banks and the like. Not part of the save: it is reloaded from
-        /// disk by the Editor (or Phase 7's runtime loader) each time a run starts, independently
-        /// of whatever save is restored.
-        /// </summary>
+        // Loaded content — name banks and the like. Not part of the save: it is reloaded from
+        // disk by the Editor (or Phase 7's runtime loader) each time a run starts, independently
+        // of whatever save is restored.
         [JsonIgnore] public WorldData WorldData { get; set; }
 
-        /// <summary>Allocates and returns the next unused entity id.</summary>
         public int AllocateEntityId()
         {
             int id = NextEntityId;
@@ -82,60 +69,48 @@ namespace KpopManager.Core
             return id;
         }
 
-        /// <summary>Adds a person to both the authoritative list and the lookup index.</summary>
         public void AddPerson(Person person)
         {
             People.Add(person);
             _peopleById[person.Id] = person;
         }
 
-        /// <summary>Adds a group to both the authoritative list and the lookup index.</summary>
         public void AddGroup(Group group)
         {
             Groups.Add(group);
             _groupsById[group.Id] = group;
         }
 
-        /// <summary>Adds a center to both the authoritative list and the lookup index.</summary>
         public void AddCenter(ProductionCenter center)
         {
             Centers.Add(center);
             _centersById[center.Id] = center;
         }
 
-        /// <summary>Adds a track to both the authoritative list and the lookup index.</summary>
         public void AddTrack(Track track)
         {
             Tracks.Add(track);
             _tracksById[track.Id] = track;
         }
 
-        /// <summary>Adds a release to both the authoritative list and the lookup index.</summary>
         public void AddRelease(Release release)
         {
             Releases.Add(release);
             _releasesById[release.Id] = release;
         }
 
-        /// <summary>Looks up a person by id, or null if there isn't one.</summary>
         public Person GetPerson(int id) => _peopleById.TryGetValue(id, out Person person) ? person : null;
 
-        /// <summary>Looks up a group by id, or null if there isn't one.</summary>
         public Group GetGroup(int id) => _groupsById.TryGetValue(id, out Group group) ? group : null;
 
-        /// <summary>Looks up a center by id, or null if there isn't one.</summary>
         public ProductionCenter GetCenter(int id) => _centersById.TryGetValue(id, out ProductionCenter center) ? center : null;
 
-        /// <summary>Looks up a track by id, or null if there isn't one.</summary>
         public Track GetTrack(int id) => _tracksById.TryGetValue(id, out Track track) ? track : null;
 
-        /// <summary>Looks up a release by id, or null if there isn't one.</summary>
         public Release GetRelease(int id) => _releasesById.TryGetValue(id, out Release release) ? release : null;
 
-        /// <summary>
-        /// Rebuilds every lookup index from the authoritative lists. Call after construction and,
-        /// from Phase 9 onward, after loading a save — the lists serialise, the indices don't.
-        /// </summary>
+        // Rebuilds every lookup index from the authoritative lists. Call after construction and,
+        // from Phase 9 onward, after loading a save — the lists serialise, the indices don't.
         public void RebuildIndices()
         {
             _peopleById = new Dictionary<int, Person>(People.Count);

@@ -2,8 +2,8 @@ using System.Collections.Generic;
 
 namespace KpopManager.Core
 {
-    /// <summary>What part of the game an entry came from. Drives filtering in the harness and,
-    /// from Phase 7, the news feed.</summary>
+    // What part of the game an entry came from. Drives filtering in the harness and, from
+    // Phase 7, the news feed.
     public enum LogCategory
     {
         System,
@@ -16,15 +16,12 @@ namespace KpopManager.Core
         Rival
     }
 
-    /// <summary>
-    /// How much the player should care.
-    /// </summary>
-    /// <remarks>
-    /// DESIGN: four levels rather than a numeric importance score, because the news feed needs
-    /// discrete visual treatments (hidden / plain line / highlighted / headline) and a float
-    /// would just get bucketed into four anyway. Debug entries are harness-only and are never
-    /// shown to the player. Revisit if the feed starts feeling too noisy or too sparse.
-    /// </remarks>
+    // How much the player should care.
+    //
+    // DESIGN: four levels rather than a numeric importance score, because the news feed needs
+    // discrete visual treatments (hidden / plain line / highlighted / headline) and a float would
+    // just get bucketed into four anyway. Debug entries are harness-only and are never shown to
+    // the player. Revisit if the feed starts feeling too noisy or too sparse.
     public enum LogSeverity
     {
         Debug,
@@ -33,18 +30,16 @@ namespace KpopManager.Core
         Major
     }
 
-    /// <summary>One line of simulation output. Immutable.</summary>
+    // One line of simulation output. Immutable.
     public readonly struct SimLogEntry
     {
-        /// <summary>Used for <see cref="RelatedEntityId"/> when the entry is not about a specific entity.</summary>
+        // Used for RelatedEntityId when the entry is not about a specific entity.
         public const int NoEntity = -1;
 
         public SimDate Date { get; }
         public LogCategory Category { get; }
         public LogSeverity Severity { get; }
         public string Message { get; }
-
-        /// <summary>Id of the entity this entry concerns, or <see cref="NoEntity"/>.</summary>
         public int RelatedEntityId { get; }
 
         public SimLogEntry(
@@ -61,10 +56,8 @@ namespace KpopManager.Core
             RelatedEntityId = relatedEntityId;
         }
 
-        /// <summary>
-        /// A flat, fully-specified rendering of this entry, used by the determinism test to
-        /// compare two runs by value. Every field takes part, so a divergence anywhere shows up.
-        /// </summary>
+        // A flat, fully-specified rendering of this entry, used by the determinism test to
+        // compare two runs by value. Every field takes part, so a divergence anywhere shows up.
         public string ToStableString()
         {
             return Date.ToString() + "|" + Category + "|" + Severity + "|" + RelatedEntityId + "|" + Message;
@@ -73,25 +66,19 @@ namespace KpopManager.Core
         public override string ToString() => ToStableString();
     }
 
-    /// <summary>
-    /// The simulation's only output channel.
-    /// </summary>
-    /// <remarks>
-    /// Core cannot call <c>Debug.Log</c> and would not compile if it tried. Everything a system
-    /// wants to say goes here; the Editor harness prints it now and the news feed renders it from
-    /// Phase 7. Entries are appended in tick order, so the list is always sorted by date.
-    /// </remarks>
+    // The simulation's only output channel.
+    //
+    // Core cannot call Debug.Log and would not compile if it tried. Everything a system wants to
+    // say goes here; the Editor harness prints it now and the news feed renders it from Phase 7.
+    // Entries are appended in tick order, so the list is always sorted by date.
     public sealed class SimLog
     {
         private readonly List<SimLogEntry> _entries = new List<SimLogEntry>();
 
-        /// <summary>Every entry recorded so far, oldest first.</summary>
         public IReadOnlyList<SimLogEntry> Entries => _entries;
 
-        /// <summary>Number of entries recorded.</summary>
         public int Count => _entries.Count;
 
-        /// <summary>Records an entry.</summary>
         public void Add(
             SimDate date,
             LogCategory category,
@@ -102,13 +89,12 @@ namespace KpopManager.Core
             _entries.Add(new SimLogEntry(date, category, severity, message, relatedEntityId));
         }
 
-        /// <summary>Records a pre-built entry.</summary>
         public void Add(SimLogEntry entry)
         {
             _entries.Add(entry);
         }
 
-        /// <summary>Returns every entry recorded on the given week, oldest first.</summary>
+        // Returns every entry recorded on the given week, oldest first.
         public List<SimLogEntry> GetForWeek(SimDate date)
         {
             var result = new List<SimLogEntry>();
@@ -127,7 +113,7 @@ namespace KpopManager.Core
             return result;
         }
 
-        /// <summary>Discards every entry. Does not affect the simulation in any way.</summary>
+        // Discards every entry. Does not affect the simulation in any way.
         public void Clear()
         {
             _entries.Clear();

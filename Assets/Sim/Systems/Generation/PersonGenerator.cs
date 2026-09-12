@@ -3,19 +3,15 @@ using System.Collections.Generic;
 
 namespace KpopManager.Core.Systems.Generation
 {
-    /// <summary>
-    /// Builds one <see cref="Person"/> from scratch: archetype first, attributes second.
-    /// </summary>
-    /// <remarks>
-    /// Every numeric choice below is a balancing knob, not a considered final value — each is
-    /// flagged <c>// DESIGN:</c> at the point it's used. Nothing here reads or writes
-    /// <see cref="GameState"/> directly; callers own id allocation and registration, so this stays
-    /// usable both from <see cref="GroupGenerator"/>/<see cref="WorldGenerator"/> and from a bare
-    /// unit test with no world at all.
-    /// </remarks>
+    // Builds one Person from scratch: archetype first, attributes second.
+    //
+    // Every numeric choice below is a balancing knob, not a considered final value — each is
+    // flagged // DESIGN: at the point it's used. Nothing here reads or writes GameState
+    // directly; callers own id allocation and registration, so this stays usable both from
+    // GroupGenerator/WorldGenerator and from a bare unit test with no world at all.
     public static class PersonGenerator
     {
-        /// <summary>Number of quality tiers <paramref name="tier"/> can take, mirroring <see cref="GroupTier"/>'s ordinals.</summary>
+        // Number of quality tiers "tier" can take, mirroring GroupTier's ordinals.
         public const int TierCount = 5;
 
         // DESIGN: five means spanning "raw trainee-pool talent" to "generational once-a-decade
@@ -26,9 +22,9 @@ namespace KpopManager.Core.Systems.Generation
         private const float AttributeStdDev = 13f;
         private const float HiddenStdDev = 15f;
 
-        /// <summary>The eight performance archetypes a person can be generated around. Excludes
-        /// <see cref="Position.Leader"/> and <see cref="Position.Maknae"/>, which are group-role
-        /// tags assigned afterward by <see cref="GroupGenerator"/>, not performance archetypes.</summary>
+        // The eight performance archetypes a person can be generated around. Excludes
+        // Position.Leader and Position.Maknae, which are group-role tags assigned afterward by
+        // GroupGenerator, not performance archetypes.
         public static readonly Position[] PrimaryArchetypes =
         {
             Position.MainVocal, Position.LeadVocal, Position.MainRapper, Position.LeadRapper,
@@ -46,17 +42,16 @@ namespace KpopManager.Core.Systems.Generation
         private static readonly string[] OtherGivenFemale = { "Ari", "Sasha", "Robin", "Skylar", "Rowan", "Nico", "Quinn", "Reese" };
         private static readonly string[] OtherFamily = { "Andersen", "Novak", "Lindgren", "Moreau", "Kowalski", "Petrov", "Silva", "Costa" };
 
-        /// <summary>
-        /// Generates a person with a random gender and a random primary archetype. This is the
-        /// literal Phase 2 signature; <see cref="GroupGenerator"/> uses the fuller overload below
-        /// so it can pin both to keep a group internally consistent.
-        /// </summary>
+        // Generates a person with a random gender and a random primary archetype. This is the
+        // literal Phase 2 signature; GroupGenerator uses the fuller overload below so it can pin
+        // both to keep a group internally consistent.
         public static Person Generate(SimRandom rng, int birthYear, int tier, PersonStatus status, SimDate now)
         {
             return Generate(rng, birthYear, tier, status, now, null, null, null);
         }
 
-        /// <summary>Generates a person, optionally pinning gender and/or primary archetype rather than rolling them.</summary>
+        // Generates a person, optionally pinning gender and/or primary archetype rather than
+        // rolling them.
         public static Person Generate(
             SimRandom rng, int birthYear, int tier, PersonStatus status, SimDate now,
             Gender? gender, Position? primaryPosition, WorldData worldData)
@@ -121,14 +116,12 @@ namespace KpopManager.Core.Systems.Generation
             return person;
         }
 
-        /// <summary>
-        /// Per-archetype attribute bonuses (additive, in points on the 0–100 scale) and a variance
-        /// multiplier. DESIGN: a MainVocal/MainRapper pair are pushed apart directly opposite each
-        /// other (a MainVocal should read as a weak rapper, not merely an average one); a Visual
-        /// gets no penalty elsewhere ("middling everything else" per DESIGN.md, not "worse at
-        /// everything else"); AllRounder trades a lower Potential ceiling and tighter spread for
-        /// having no glaring weakness. Revisit heavily during balancing.
-        /// </summary>
+        // Per-archetype attribute bonuses (additive, in points on the 0-100 scale) and a variance
+        // multiplier. DESIGN: a MainVocal/MainRapper pair are pushed apart directly opposite each
+        // other (a MainVocal should read as a weak rapper, not merely an average one); a Visual
+        // gets no penalty elsewhere ("middling everything else" per DESIGN.md, not "worse at
+        // everything else"); AllRounder trades a lower Potential ceiling and tighter spread for
+        // having no glaring weakness. Revisit heavily during balancing.
         private static void GetArchetypeBonuses(
             Position archetype,
             out float vocalBonus, out float rapBonus, out float danceBonus,
@@ -167,11 +160,9 @@ namespace KpopManager.Core.Systems.Generation
             }
         }
 
-        /// <summary>
-        /// DESIGN: current ability ramps with age — a 15-year-old trainee reads as raw even at a
-        /// good tier, a 23-year-old idol reads as fully realised, and a couple more years buy a
-        /// small extra polish before flattening out. Revisit during balancing.
-        /// </summary>
+        // DESIGN: current ability ramps with age — a 15-year-old trainee reads as raw even at a
+        // good tier, a 23-year-old idol reads as fully realised, and a couple more years buy a
+        // small extra polish before flattening out. Revisit during balancing.
         private static float AgeFactor(int age)
         {
             if (age <= 14) return 0.35f;
@@ -180,13 +171,11 @@ namespace KpopManager.Core.Systems.Generation
             return 1.0f + (age - 23) / 3f * 0.10f;
         }
 
-        /// <summary>
-        /// DESIGN: how much of the gap between current skill and 100 counts as genuine remaining
-        /// headroom. A 15-year-old might still have most of it ahead of them; a 26-year-old idol
-        /// has largely already become who they're going to be. This is the whole point of the
-        /// scouting fog Phase 5 builds on top — a weak-but-young trainee with a high roll here is
-        /// exactly the "does she bloom at 19?" case DESIGN.md calls out. Revisit during balancing.
-        /// </summary>
+        // DESIGN: how much of the gap between current skill and 100 counts as genuine remaining
+        // headroom. A 15-year-old might still have most of it ahead of them; a 26-year-old idol
+        // has largely already become who they're going to be. This is the whole point of the
+        // scouting fog Phase 5 builds on top — a weak-but-young trainee with a high roll here is
+        // exactly the "does she bloom at 19?" case DESIGN.md calls out. Revisit during balancing.
         private static float PotentialHeadroomFactor(int age)
         {
             if (age <= 16) return 0.85f;
@@ -216,12 +205,10 @@ namespace KpopManager.Core.Systems.Generation
             person.Potential = Clamp(raw, coreMax, 100f);
         }
 
-        /// <summary>
-        /// DESIGN: roughly 80% Korean; the remaining 20% weighted toward the nationalities with
-        /// the largest real overseas trainee pipelines (Japan, China), then a smaller Thai/American
-        /// share, then a thin "Other" tail. Revisit once overseas expansion (out of MVP scope)
-        /// makes this matter mechanically rather than just for flavour.
-        /// </summary>
+        // DESIGN: roughly 80% Korean; the remaining 20% weighted toward the nationalities with
+        // the largest real overseas trainee pipelines (Japan, China), then a smaller Thai/American
+        // share, then a thin "Other" tail. Revisit once overseas expansion (out of MVP scope)
+        // makes this matter mechanically rather than just for flavour.
         private static Nationality RollNationality(SimRandom rng)
         {
             float r = rng.NextFloat();
@@ -337,11 +324,9 @@ namespace KpopManager.Core.Systems.Generation
             }
         }
 
-        /// <summary>
-        /// DESIGN: years training bounded by how long someone could plausibly have trained (not
-        /// before roughly age 11), tier-agnostic for now — Phase 5's TrainingSystem is what will
-        /// give this real meaning. Revisit once that exists.
-        /// </summary>
+        // DESIGN: years training bounded by how long someone could plausibly have trained (not
+        // before roughly age 11), tier-agnostic for now — Phase 5's TrainingSystem is what will
+        // give this real meaning. Revisit once that exists.
         private static void AssignTraining(SimRandom rng, Person person, SimDate now, int age)
         {
             int maxPlausible = Math.Max(0, age - 11);

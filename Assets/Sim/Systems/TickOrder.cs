@@ -4,32 +4,22 @@ using KpopManager.Core.Systems.Fandom;
 
 namespace KpopManager.Core.Systems
 {
-    /// <summary>
-    /// The twelve-step weekly tick order.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <b>This is the spine of the project.</b> It is deliberately the only place the order is
-    /// written down. Changing it once systems depend on each other's side effects is painful, so
-    /// every step is registered from Phase 1 — as a do-nothing stub where the behaviour does not
-    /// exist yet — to lock the sequence in before anything can come to rely on the wrong one.
-    /// </para>
-    /// <para>
-    /// The order matches <c>Docs/ARCHITECTURE.md</c>. If one changes, change the other in the same
-    /// session.
-    /// </para>
-    /// <para>
-    /// The order also fixes the sequence of draws from <see cref="GameState.Random"/>, which is
-    /// half of what makes a run reproducible. Reordering steps changes every future random number,
-    /// so an existing save will not replay after a reorder.
-    /// </para>
-    /// </remarks>
+    // The twelve-step weekly tick order.
+    //
+    // This is the spine of the project. It is deliberately the only place the order is written
+    // down. Changing it once systems depend on each other's side effects is painful, so every
+    // step is registered from Phase 1 — as a do-nothing stub where the behaviour does not exist
+    // yet — to lock the sequence in before anything can come to rely on the wrong one.
+    //
+    // The order matches Docs/ARCHITECTURE.md. If one changes, change the other in the same
+    // session.
+    //
+    // The order also fixes the sequence of draws from GameState.Random, which is half of what
+    // makes a run reproducible. Reordering steps changes every future random number, so an
+    // existing save will not replay after a reorder.
     public static class TickOrder
     {
-        /// <summary>
-        /// Builds the standard system list, in tick order. Every new <see cref="SimEngine"/> gets
-        /// one of these.
-        /// </summary>
+        // Every new SimEngine gets one of these.
         public static List<ISimSystem> BuildDefault()
         {
             return new List<ISimSystem>
@@ -45,7 +35,7 @@ namespace KpopManager.Core.Systems
                 new ReleaseScheduler(),                                    //  3  (Phase 3a)
                 new ChartSystem(),                                         //  4  (Phase 3a)
                 new StubSystem("Music show results", 4),                   //  5
-                new FandomSystem(),                                        //  6  (Phase 3a, stand-in — see FandomSystem's remarks)
+                new FandomSystem(),                                        //  6  (Phase 3a, stand-in — see FandomSystem's own comments)
                 new StubSystem("Fatigue / health / morale", 4),            //  7
                 new StubSystem("Random events", 8),                        //  8
                 new StubSystem("Rival AI turns", 3),                       //  9

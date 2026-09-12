@@ -3,8 +3,8 @@ using NUnit.Framework;
 
 namespace KpopManager.Tests
 {
-    /// <summary>Covers the storage pattern every entity type shares: an authoritative ordered
-    /// list plus a lookup index that must survive <see cref="GameState.RebuildIndices"/>.</summary>
+    // Covers the storage pattern every entity type shares: an authoritative ordered list plus a
+    // lookup index that must survive GameState.RebuildIndices.
     [TestFixture]
     public class GameStateEntityTests
     {

@@ -4,15 +4,10 @@ using NUnit.Framework;
 
 namespace KpopManager.Tests
 {
-    /// <summary>
-    /// Guards the tick budget.
-    /// </summary>
-    /// <remarks>
-    /// Balancing means running 50 years headless and reading the CSV. If a tick gets slow enough
-    /// that a 50-year run stops being instant, the balance loop stops being usable and the game
-    /// stops getting balanced. Catching that at the moment a system gets expensive is much cheaper
-    /// than finding it in Phase 10.
-    /// </remarks>
+    // Guards the tick budget. Balancing means running 50 years headless and reading the CSV — if
+    // a tick gets slow enough that a 50-year run stops being instant, the balance loop stops
+    // being usable and the game stops getting balanced. Catching that at the moment a system
+    // gets expensive is much cheaper than finding it in Phase 10.
     [TestFixture]
     public class PerformanceTests
     {

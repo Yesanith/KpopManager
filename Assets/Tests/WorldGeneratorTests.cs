@@ -101,7 +101,7 @@ namespace KpopManager.Tests
         }
 
         [Test]
-        public void GeneratesRoughlyFifteenGroupsOutsideTheCompany()
+        public void GeneratesWorldGroupCountGroupsOutsideTheCompany()
         {
             WorldData data = TestFixtures.BuildWorldData();
             GameState state = TestFixtures.BuildState(1UL, data);
@@ -110,7 +110,9 @@ namespace KpopManager.Tests
             HashSet<int> companyCenterIds = new HashSet<int>(state.Company.CenterIds);
             int outsideGroupCount = state.Groups.Count(g => !companyCenterIds.Contains(g.CenterId));
 
-            Assert.That(outsideGroupCount, Is.EqualTo(15));
+            // Phase 3b fix 2a: config-driven, not a hardcoded 15 — the world grew to fix an
+            // uncontested chart. See ChartConfig.WorldGroupCount.
+            Assert.That(outsideGroupCount, Is.EqualTo(state.ChartConfig.WorldGroupCount));
         }
 
         [Test]

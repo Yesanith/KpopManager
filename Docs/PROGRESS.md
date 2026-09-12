@@ -93,14 +93,25 @@ Structure and instruments only, per the Phase 3a brief — **nothing was tuned.*
 
 **Full 5-seed sweep output, and the 3 longest-charting releases from seed 12345, are pasted in the Phase 3a chat report** (not duplicated here — see the balance tooling section of `ARCHITECTURE.md` for what the six metrics mean). Headline: everything passes on all 5 seeds except **#1 concentration**, which is low on all 5 (Gini 0.26–0.45 against a 0.45–0.70 target) — the first thing to try tuning next session.
 
-### Phase 3b — the actual balance pass *(not started)*
+### Phase 3b — the actual balance pass *(iteration 1 — structural fixes — complete, 2026-09-12; tuning not started)*
 
-- [ ] Balance: distribution of #1s is a power law with upsets
-- [ ] Balance: average top-10 longevity lands 4–12 weeks
-- [ ] Balance: quality correlates weakly with peak, strongly with longevity
-- [ ] Balance: fandom persists without total lock-in
-- [ ] BALANCE.md updated throughout
-- [ ] **Gate: a 50-year history reads like a plausible industry. Do not proceed otherwise.**
+Iteration 1 was structural, not tuning, per its own brief: two root causes (additive fandom growth converging every group toward the same size; a world too small to contest a 100-slot chart) plus their downstream symptoms (tier always Legendary, promo spend always flat). **No `Weight*`, decay constant, competition constant, or fandom-surge value was touched.**
+
+- [x] Fix 1 — `FandomSystem`: additive/saturating growth → proportional + bootstrap, damped only well above the sizes the sim reaches
+- [x] Fix 2a — `WorldGenerator`: 15 groups / 5 companies → `ChartConfig.WorldGroupCount` (200) / 25 companies, tier-share pyramid
+- [x] Fix 2b — new `IndustryChurnSystem`: yearly disbands + debuts for world groups (player's own company untouched)
+- [x] Fix 2c — `TierSystem`: absolute thresholds → percentile rank against the active cohort, with dead-band hysteresis
+- [x] Fix 2d — `ReleaseScheduler.ComputePromoSpend`: additive → multiplicative
+- [x] Tooling: `Release.GroupTierAtRelease` (a real CSV-export bug — was reading the group's *current* tier), `chart_occupancy_*.csv`, 3 new metrics (Top-10 rate, #1 rate, Fandom spread), Hit longevity marked provisional
+- [x] Bug caught in verification, fixed: `TierHysteresisPct`/`TierPctLegendary` both `0.02` made Legendary unreachable by promotion — see `ARCHITECTURE.md`
+- [x] Tests: 11 new (fandom growth compounding/bootstrap/no-floor-decay, churn scope/timing/counters, percentile tier distribution, multiplicative promo spend) — 108 total, all passing
+- [x] Determinism still holds (same seed → same 50-year chart history; the RNG draw sequence shifted, as expected any time Core code changes, but the property itself is intact)
+- [ ] Balance: distribution of #1s is a power law with upsets — **measured, not fixed: now overcorrected.** Gini ~0.90 (target 0.45–0.70) — swung from too-flat to too-extreme.
+- [ ] Balance: average top-10 longevity lands 4–12 weeks — **measured: ~1.4 weeks, way low**, and the band itself is now flagged provisional (Phase 3a's baseline was passing against an uncontested chart, so 4–12 was never validated against a correctly-contested one either)
+- [ ] Balance: quality correlates weakly with peak, strongly with longevity — Peak still passes (r ≈ −0.22); Longevity now fails low (r ≈ 0.36 against >0.55)
+- [ ] Balance: fandom persists without total lock-in — **measured, not fixed: now overcorrected.** Persistence rho ~0.87 (target 0.3–0.7) and fandom spread p90/p10 ~289x (target >20, but nowhere near "just cleared") — this reads as lock-in, the exact failure mode DESIGN.md warns against, just arrived at from the opposite direction.
+- [ ] BALANCE.md updated throughout — done for this iteration; the *next* iteration (actual tuning against these numbers) hasn't started
+- [ ] **Gate: a 50-year history reads like a plausible industry. Do not proceed otherwise.** — Not cleared. Every concentration/lock-in metric and every scarcity/churn metric is now off in the *opposite* direction from Phase 3a's baseline. Full sweep output, 4 sample chart runs, fandom-ratio and tier-distribution snapshots, and PromoSpend percentiles are pasted in the Phase 3b chat report (not duplicated here) and summarized in `Docs/BALANCE.md`.
 
 ---
 

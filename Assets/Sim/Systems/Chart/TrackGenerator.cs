@@ -2,22 +2,21 @@ using System;
 
 namespace KpopManager.Core.Systems.Chart
 {
-    /// <summary>Builds one <see cref="Track"/>: a quality roll plus a generated title. The caller
-    /// assigns <see cref="Track.Id"/> after generation, matching <c>PersonGenerator</c>'s pattern.</summary>
+    // Builds one Track: a quality roll plus a generated title. The caller assigns Track.Id after
+    // generation, matching PersonGenerator's pattern.
     public static class TrackGenerator
     {
-        /// <summary>Generates a track with default config and no title word bank (falls back to a
-        /// synthetic title). This is the literal Phase 3a signature; <see cref="ReleaseScheduler"/>
-        /// uses the fuller overload below so titles and tuning actually come from the real config.</summary>
+        // Generates a track with default config and no title word bank (falls back to a
+        // synthetic title). This is the literal Phase 3a signature; ReleaseScheduler uses the
+        // fuller overload below so titles and tuning actually come from the real config.
         public static Track Generate(SimRandom rng, int centerTier, int composerSkill)
         {
             return Generate(rng, centerTier, composerSkill, new ChartConfig(), null);
         }
 
-        /// <summary>Generates a track using real config and content.</summary>
-        /// <param name="centerTier">0–4, mirroring <see cref="GroupTier"/>'s ordinal.</param>
-        /// <param name="composerSkill">0–100. The composing person's skill, or a flat baseline for
-        /// an external songwriter (<see cref="Track.ComposerId"/> stays <see cref="Person.NoEntity"/>).</param>
+        // centerTier: 0-4, mirroring GroupTier's ordinal.
+        // composerSkill: 0-100. The composing person's skill, or a flat baseline for an external
+        // songwriter (Track.ComposerId stays Person.NoEntity).
         public static Track Generate(SimRandom rng, int centerTier, int composerSkill, ChartConfig config, WorldData worldData)
         {
             int clampedTier = centerTier < 0 ? 0 : (centerTier > 4 ? 4 : centerTier);

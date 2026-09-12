@@ -50,7 +50,7 @@ Namespaces mirror assembly names: `KpopManager.Core.Systems`, `KpopManager.Edito
 - **Tuning changes go in `Docs/BALANCE.md`** — what you changed, what happened, one line each.
 - Commit summaries: `ADD: [description]`. Other prefixes: `FIX:`, `REFACTOR:`, `DOCS:`, `BALANCE:`.
 - Prefer explicit named fields over dictionaries for attributes. Easier to debug, and the count is small enough.
-- XML doc comments on public types and any method whose behaviour isn't obvious from its name.
+- Comments record decisions and hazards, not restatements of what the signature already says. XML doc comments are not used in this project.
 - **Don't add a summary at the end of a response.** State results plainly as you go (test output, what changed, what to check) and stop — no closing recap section restating what was just done.
 
 ---

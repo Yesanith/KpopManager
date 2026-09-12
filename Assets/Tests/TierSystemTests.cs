@@ -39,20 +39,38 @@ namespace KpopManager.Tests
         }
 
         [Test]
-        public void NoChartHistory_NeverPromotesFromRookie()
+        public void WeakestGroupInARealCohort_NeverPromotesFromRookie()
         {
+            // A single-group "cohort" is trivially always the top of itself under percentile
+            // ranking, so this needs a real population to mean anything — that's the whole point
+            // of Phase 3b fix 2c.
             GameState state = new GameState { ChartConfig = new ChartConfig(), Log = new SimLog() };
+            SimDate debut = new SimDate(1, 1);
 
-            Group group = new Group
+            Group weak = new Group
             {
-                Id = 1, Name = "NeverCharted", Tier = GroupTier.Rookie, DebutDate = SimDate.Start, IsActive = true,
+                Id = 1, Name = "NeverCharted", Tier = GroupTier.Rookie, DebutDate = debut, IsActive = true,
                 Fandom = new Fandom { Size = 100 }
             };
-            state.AddGroup(group);
+            state.AddGroup(weak);
 
-            TierSystem.Evaluate(state, SimDate.Start.AdvanceWeeks(26));
+            for (int i = 0; i < 9; i++)
+            {
+                Group strong = new Group
+                {
+                    Id = 10 + i, Name = "Strong" + i, Tier = GroupTier.Established, DebutDate = debut, IsActive = true,
+                    Fandom = new Fandom { Size = 3_000_000 }
+                };
+                Release release = new Release { Id = 100 + i, GroupId = strong.Id, ReleaseDate = debut };
+                for (int w = 0; w < 26; w++) release.WeeklyPositions.Add(1 + i);
+                state.AddGroup(strong);
+                state.AddRelease(release);
+                strong.ReleaseIds.Add(release.Id);
+            }
 
-            Assert.That(group.Tier, Is.EqualTo(GroupTier.Rookie));
+            TierSystem.Evaluate(state, debut.AdvanceWeeks(26));
+
+            Assert.That(weak.Tier, Is.EqualTo(GroupTier.Rookie), "the worst-scoring group in a 10-group cohort should not be promoted");
         }
 
         [Test]
@@ -77,6 +95,45 @@ namespace KpopManager.Tests
             TierSystem.Evaluate(state, debut.AdvanceWeeks(5));
 
             Assert.That(group.Tier, Is.EqualTo(GroupTier.Rookie));
+        }
+
+        [Test]
+        public void LargeCohortWithVariedScores_ProducesAllFiveTiers_NotEveryoneLegendary()
+        {
+            // The exact bug Phase 3b fix 2c targets: with the pre-fix absolute thresholds, a
+            // deliberately mediocre group scored 91.7 against a Legendary threshold of 82 — every
+            // group in the actual sim came out Legendary. This builds 100 groups spanning a wide
+            // score range and checks the result actually spreads across tiers.
+            GameState state = new GameState { ChartConfig = new ChartConfig(), Log = new SimLog() };
+            SimDate debut = new SimDate(1, 1);
+            SimRandom rng = new SimRandom(99UL);
+
+            for (int i = 0; i < 100; i++)
+            {
+                Group group = new Group { Id = i, Name = "G" + i, Tier = GroupTier.Rookie, DebutDate = debut, IsActive = true };
+
+                // Spread peak position and fandom widely across the population, deterministically.
+                int peak = 1 + i; // 1..100
+                long fandom = (long)System.Math.Pow(10, 3 + i / 20.0); // ~1k up to ~10M
+
+                group.Fandom = new Fandom { Size = fandom };
+
+                Release release = new Release { Id = 1000 + i, GroupId = group.Id, ReleaseDate = debut };
+                for (int w = 0; w < 26; w++) release.WeeklyPositions.Add(peak);
+
+                state.AddGroup(group);
+                state.AddRelease(release);
+                group.ReleaseIds.Add(release.Id);
+            }
+
+            TierSystem.Evaluate(state, debut.AdvanceWeeks(26));
+
+            var byTier = state.Groups.GroupBy(g => g.Tier).ToDictionary(g => g.Key, g => g.Count());
+
+            int legendaryCount = byTier.TryGetValue(GroupTier.Legendary, out int lc) ? lc : 0;
+
+            Assert.That(byTier.Keys.Count, Is.GreaterThan(1), "a 100-group spread should not collapse onto a single tier");
+            Assert.That(legendaryCount, Is.LessThan(state.Groups.Count), "not every group in a varied cohort should be Legendary");
         }
 
         [Test]

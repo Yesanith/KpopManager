@@ -2,16 +2,14 @@ using System;
 
 namespace KpopManager.Core.Systems.Chart
 {
-    /// <summary>
-    /// Tick step 3: drives every non-player group's comeback cadence — generates a track, creates
-    /// a <see cref="Release"/>, and schedules the group's next one.
-    /// </summary>
-    /// <remarks>
-    /// The player's own group is never touched here; Phase 4's player-driven comeback cycle owns
-    /// it. Everything this system needs to remember between ticks — a group's cadence and its next
-    /// due date — lives on <see cref="Group"/> itself, seeded once at world generation by
-    /// <c>GroupGenerator</c>, because this system, like every <see cref="ISimSystem"/>, is stateless.
-    /// </remarks>
+    // Tick step 3: drives every non-player group's comeback cadence — generates a track, creates a
+    // Release, and schedules the group's next one. Also runs IndustryChurnSystem first, so a group
+    // disbanded or newly debuted this same week is already reflected before release scheduling runs.
+    //
+    // The player's own group is never touched here; Phase 4's player-driven comeback cycle owns
+    // it. Everything this system needs to remember between ticks — a group's cadence and its next
+    // due date — lives on Group itself, seeded once at world generation by GroupGenerator, because
+    // this system, like every ISimSystem, is stateless.
     public sealed class ReleaseScheduler : ISimSystem
     {
         public string Name => "Track quality decay / new releases";
@@ -20,6 +18,8 @@ namespace KpopManager.Core.Systems.Chart
         {
             ChartConfig config = state.ChartConfig;
             SimDate now = state.Date;
+
+            IndustryChurnSystem.Evaluate(state, now);
 
             for (int i = 0; i < state.Groups.Count; i++)
             {
@@ -57,7 +57,8 @@ namespace KpopManager.Core.Systems.Chart
                 Concept = RollConcept(rng),
                 PromoSpend = ComputePromoSpend(rng, center, group, config),
                 Type = RollReleaseType(rng, config),
-                FandomSizeAtRelease = group.Fandom.Size
+                FandomSizeAtRelease = group.Fandom.Size,
+                GroupTierAtRelease = group.Tier
             };
 
             state.AddRelease(release);
@@ -87,17 +88,32 @@ namespace KpopManager.Core.Systems.Chart
             return (int)Clamp(baseline, 0f, 100f);
         }
 
-        private static float ComputePromoSpend(SimRandom rng, ProductionCenter center, Group group, ChartConfig config)
+        // Phase 3b fix 2d: multiplicative, not additive. With the old additive formula and every
+        // group Legendary (tier system was previously incapable of producing anything else), the
+        // spend range was a flat 30k-50k for everyone; fixing tier restores most of the spread on
+        // its own, but multiplicative composition on top is what lets a Legendary group at a
+        // top-tier center outspend a Rookie at a poor one by an order of magnitude rather than 3x.
+        // Internal, not private: exercised directly by ReleaseSchedulerTests so the multiplicative
+        // scaling is tested against the real formula.
+        internal static float ComputePromoSpend(SimRandom rng, ProductionCenter center, Group group, ChartConfig config)
         {
             int centerTierOrdinal = center != null ? (int)center.Tier : 0;
             int groupTierOrdinal = (int)group.Tier;
 
-            float baseAmount = config.PromoSpendBaseByCenterTier * (centerTierOrdinal + 1)
-                + config.PromoSpendPerGroupTier * groupTierOrdinal;
+            float baseAmount = config.PromoSpendBase
+                * Pow(config.PromoSpendCenterTierMult, centerTierOrdinal)
+                * Pow(config.PromoSpendGroupTierMult, groupTierOrdinal);
 
             float jitter = 1f + rng.NextFloat(-config.PromoSpendJitterPct, config.PromoSpendJitterPct);
             float spend = baseAmount * jitter;
             return spend < 0f ? 0f : spend;
+        }
+
+        private static float Pow(float baseValue, int exponent)
+        {
+            float result = 1f;
+            for (int i = 0; i < exponent; i++) result *= baseValue;
+            return result;
         }
 
         private static Concept RollConcept(SimRandom rng)
@@ -126,9 +142,9 @@ namespace KpopManager.Core.Systems.Chart
                 group.Id);
         }
 
-        /// <summary>Advances a group's cadence-based next-release date: base cadence in weeks,
-        /// nudged for the season, nudged again to mildly avoid colliding with a sibling center's
-        /// already-scheduled release (world groups outside the company don't coordinate at all).</summary>
+        // Advances a group's cadence-based next-release date: base cadence in weeks, nudged for
+        // the season, nudged again to mildly avoid colliding with a sibling center's
+        // already-scheduled release (world groups outside the company don't coordinate at all).
         private static void ScheduleNext(GameState state, Group group, ProductionCenter center, ChartConfig config, SimDate now)
         {
             SimRandom rng = state.Random;
@@ -142,12 +158,10 @@ namespace KpopManager.Core.Systems.Chart
             group.NextReleaseDate = candidate;
         }
 
-        /// <summary>
-        /// DESIGN: a coarse heuristic, not a real seasonal model — nudges a candidate date a few
-        /// weeks earlier if it already falls in the spring/autumn windows, or later if it falls in
-        /// the midsummer window, proportional to the configured boost/penalty strength. Revisit
-        /// during balancing if release timing needs to read as more than "roughly clustered."
-        /// </summary>
+        // DESIGN: a coarse heuristic, not a real seasonal model — nudges a candidate date a few
+        // weeks earlier if it already falls in the spring/autumn windows, or later if it falls in
+        // the midsummer window, proportional to the configured boost/penalty strength. Revisit
+        // during balancing if release timing needs to read as more than "roughly clustered."
         private static SimDate ApplySeasonality(SimDate candidate, ChartConfig config)
         {
             int week = candidate.Week;

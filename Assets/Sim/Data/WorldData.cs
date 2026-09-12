@@ -4,11 +4,9 @@ using Newtonsoft.Json;
 
 namespace KpopManager.Core
 {
-    /// <summary>
-    /// Parses the compact <c>"F"</c>/<c>"M"</c> gender tag the content JSON uses (also accepts the
-    /// full enum names) into <see cref="Gender"/>. A tiny custom converter rather than asking the
-    /// content files to spell out "Female"/"Male" on every one of ~750 entries.
-    /// </summary>
+    // Parses the compact "F"/"M" gender tag the content JSON uses (also accepts the full enum
+    // names) into Gender. A tiny custom converter rather than asking the content files to spell
+    // out "Female"/"Male" on every one of ~750 entries.
     public sealed class GenderJsonConverter : JsonConverter
     {
         public override bool CanConvert(Type objectType) => objectType == typeof(Gender);
@@ -40,7 +38,7 @@ namespace KpopManager.Core
         }
     }
 
-    /// <summary>One named entry tagged with the gender it reads as, e.g. a given name.</summary>
+    // One named entry tagged with the gender it reads as, e.g. a given name.
     public sealed class NameEntry
     {
         public string Name { get; set; }
@@ -49,25 +47,22 @@ namespace KpopManager.Core
         public Gender Gender { get; set; }
     }
 
-    /// <summary>One named entry with a relative frequency weight, e.g. a Korean family name.</summary>
+    // One named entry with a relative frequency weight, e.g. a Korean family name.
     public sealed class WeightedName
     {
         public string Name { get; set; }
 
-        /// <summary>Relative, not a percentage — <see cref="Systems.Generation.PersonGenerator"/> normalises
-        /// against the sum of all weights in the pool, so these don't need to add to any particular total.</summary>
+        // Relative, not a percentage — PersonGenerator normalises against the sum of all weights
+        // in the pool, so these don't need to add to any particular total.
         public float Weight { get; set; }
     }
 
-    /// <summary>
-    /// All loaded name-bank content, as plain data. Built once by <c>WorldDataLoader.FromJson</c>
-    /// from JSON the Editor reads off disk (Core has no file I/O), then attached to
-    /// <see cref="GameState.WorldData"/> for the life of a run.
-    /// </summary>
-    /// <remarks>
-    /// Explicit named lists rather than a dictionary keyed by content type, per CLAUDE.md's
-    /// convention — the count is small and fixed, and a name beats a key you have to remember.
-    /// </remarks>
+    // All loaded name-bank content, as plain data. Built once by WorldDataLoader.FromJson from
+    // JSON the Editor reads off disk (Core has no file I/O), then attached to GameState.WorldData
+    // for the life of a run.
+    //
+    // Explicit named lists rather than a dictionary keyed by content type, per CLAUDE.md's
+    // convention — the count is small and fixed, and a name beats a key you have to remember.
     public sealed class WorldData
     {
         public List<NameEntry> KoreanGivenNames { get; set; } = new List<NameEntry>();
@@ -79,21 +74,15 @@ namespace KpopManager.Core
         public List<NameEntry> ChineseGivenNames { get; set; } = new List<NameEntry>();
         public List<NameEntry> ThaiGivenNames { get; set; } = new List<NameEntry>();
 
-        /// <summary>
-        /// Track titles are assembled as "<c>{Prefix} {Suffix}</c>" (Phase 3a,
-        /// <see cref="Systems.Generation"/> namespace's sibling <c>Systems.Chart.TrackGenerator</c>)
-        /// rather than stored whole — prefixCount × suffixCount combinations comfortably covers a
-        /// 50-year run without every title needing to be hand-typed individually.
-        /// </summary>
+        // Track titles are assembled as "{Prefix} {Suffix}" (Systems.Chart.TrackGenerator)
+        // rather than stored whole — prefixCount x suffixCount combinations comfortably covers a
+        // 50-year run without every title needing to be hand-typed individually.
         public List<string> TrackTitlePrefixes { get; set; } = new List<string>();
         public List<string> TrackTitleSuffixes { get; set; } = new List<string>();
 
-        /// <summary>
-        /// The given-name pool for a foreign nationality, or null if none is loaded for it.
-        /// American and Other aren't covered by content JSON at this scope (~5% of the generated
-        /// population combined) — <see cref="Systems.Generation.PersonGenerator"/> falls back to a
-        /// small embedded list for those two.
-        /// </summary>
+        // The given-name pool for a foreign nationality, or null if none is loaded for it.
+        // American and Other aren't covered by content JSON at this scope (~5% of the generated
+        // population combined) — PersonGenerator falls back to a small embedded list for those two.
         public List<NameEntry> GetForeignGivenNames(Nationality nationality)
         {
             switch (nationality)

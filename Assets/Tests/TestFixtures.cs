@@ -2,9 +2,9 @@ using KpopManager.Core;
 
 namespace KpopManager.Tests
 {
-    /// <summary>Small, hand-built content shared by the generation tests — real JSON files live
-    /// under <c>Assets/SimData</c> and are read only by the Editor, so Core-only tests build their
-    /// own minimal fixture instead of depending on file content.</summary>
+    // Small, hand-built content shared by the generation tests — real JSON files live under
+    // Assets/SimData and are read only by the Editor, so Core-only tests build their own minimal
+    // fixture instead of depending on file content.
     internal static class TestFixtures
     {
         public static WorldData BuildWorldData()

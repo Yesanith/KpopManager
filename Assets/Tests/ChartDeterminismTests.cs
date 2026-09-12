@@ -6,9 +6,8 @@ using NUnit.Framework;
 
 namespace KpopManager.Tests
 {
-    /// <summary>Phase 3a's extension of Phase 1's determinism guarantee: with a full chart
-    /// simulation now running every week, a 50-year history must still be byte-identical for the
-    /// same seed.</summary>
+    // Phase 3a's extension of Phase 1's determinism guarantee: with a full chart simulation now
+    // running every week, a 50-year history must still be byte-identical for the same seed.
     [TestFixture]
     public class ChartDeterminismTests
     {

@@ -4,14 +4,10 @@ using NUnit.Framework;
 
 namespace KpopManager.Tests
 {
-    /// <summary>
-    /// The most important tests in the project.
-    /// </summary>
-    /// <remarks>
-    /// Determinism is the property everything else rests on: balancing means comparing two runs,
-    /// and save/load means resuming one. A single stray <c>DateTime.Now</c>, <c>System.Random</c>
-    /// or dictionary-ordered iteration breaks it permanently and silently. Run these every session.
-    /// </remarks>
+    // The most important tests in the project. Determinism is the property everything else rests
+    // on: balancing means comparing two runs, and save/load means resuming one. A single stray
+    // DateTime.Now, System.Random, or dictionary-ordered iteration breaks it permanently and
+    // silently. Run these every session.
     [TestFixture]
     public class DeterminismTests
     {

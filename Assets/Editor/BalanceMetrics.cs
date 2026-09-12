@@ -4,13 +4,13 @@ using System.Linq;
 
 namespace KpopManager.Editor
 {
-    /// <summary>Small, dependency-free statistics helpers for <see cref="BalanceRunner"/>. Pure
-    /// functions over plain lists — nothing here touches <c>GameState</c> or Unity.</summary>
+    // Small, dependency-free statistics helpers for BalanceRunner. Pure functions over plain
+    // lists — nothing here touches GameState or Unity.
     internal static class BalanceMetrics
     {
-        /// <summary>Gini coefficient over a set of non-negative values (e.g. per-group #1-week
-        /// counts). 0 = perfectly equal, approaching 1 = maximally concentrated. Returns 0 if every
-        /// value is zero (nothing to be unequal about).</summary>
+        // Gini coefficient over a set of non-negative values (e.g. per-group #1-week counts).
+        // 0 = perfectly equal, approaching 1 = maximally concentrated. Returns 0 if every value
+        // is zero (nothing to be unequal about).
         public static double Gini(IReadOnlyList<double> values)
         {
             int n = values.Count;
@@ -32,8 +32,8 @@ namespace KpopManager.Editor
             return (2d * weightedSum) / (n * sum) - (n + 1d) / n;
         }
 
-        /// <summary>Pearson product-moment correlation coefficient. Returns 0 if either series has
-        /// zero variance (undefined, but 0 is a safer default than NaN for a printed report).</summary>
+        // Pearson product-moment correlation coefficient. Returns 0 if either series has zero
+        // variance (undefined, but 0 is a safer default than NaN for a printed report).
         public static double PearsonR(IReadOnlyList<double> xs, IReadOnlyList<double> ys)
         {
             int n = xs.Count;
@@ -56,12 +56,33 @@ namespace KpopManager.Editor
             return covariance / Math.Sqrt(varX * varY);
         }
 
-        /// <summary>Spearman rank correlation: Pearson's r computed on each series' ranks
-        /// (average rank for ties) instead of raw values.</summary>
+        // Spearman rank correlation: Pearson's r computed on each series' ranks (average rank
+        // for ties) instead of raw values.
         public static double SpearmanRho(IReadOnlyList<double> xs, IReadOnlyList<double> ys)
         {
             if (xs.Count != ys.Count || xs.Count == 0) return 0d;
             return PearsonR(Rank(xs), Rank(ys));
+        }
+
+        // Linear-interpolation percentile (the common "R type 7" method) — e.g.
+        // Percentile(values, 0.9) for p90. Returns 0 for an empty input.
+        public static double Percentile(IReadOnlyList<double> values, double p)
+        {
+            int n = values.Count;
+            if (n == 0) return 0d;
+            if (n == 1) return values[0];
+
+            double[] sorted = values.ToArray();
+            Array.Sort(sorted);
+
+            double clampedP = p < 0d ? 0d : (p > 1d ? 1d : p);
+            double rank = clampedP * (n - 1);
+            int lower = (int)Math.Floor(rank);
+            int upper = (int)Math.Ceiling(rank);
+            if (lower == upper) return sorted[lower];
+
+            double fraction = rank - lower;
+            return sorted[lower] + (sorted[upper] - sorted[lower]) * fraction;
         }
 
         private static double Mean(IReadOnlyList<double> values)
@@ -71,8 +92,8 @@ namespace KpopManager.Editor
             return sum / values.Count;
         }
 
-        /// <summary>Average (fractional) rank per value, 1-based, ties sharing the mean of the
-        /// positions they span.</summary>
+        // Average (fractional) rank per value, 1-based, ties sharing the mean of the positions
+        // they span.
         private static double[] Rank(IReadOnlyList<double> values)
         {
             int n = values.Count;
