@@ -45,6 +45,11 @@ namespace KpopManager.Core
 
         public GroupTier Tier { get; set; }
         public bool IsActive { get; set; }
+
+        // Null while the group is still active. Set once, by IndustryChurnSystem.Disband, so
+        // BalanceRunner can report a real mean-lifespan distribution instead of only "still going
+        // or not" — a group's age at disband is otherwise lost the moment IsActive flips to false.
+        public SimDate? DisbandDate { get; set; }
         public Fandom Fandom { get; set; } = new Fandom();
         public List<int> ReleaseIds { get; set; } = new List<int>();
 

@@ -94,12 +94,33 @@ namespace KpopManager.Core.Systems.Chart
         private static void Disband(GameState state, Group group, SimDate now, string reason)
         {
             group.IsActive = false;
+            group.DisbandDate = now;
             state.Log.Add(now, LogCategory.Rival, LogSeverity.Notable, group.Name + " disbanded (" + reason + ")", group.Id);
+        }
+
+        // Phase 3b iteration 2 fix 3: target-seeking, not a fixed roll — the fixed
+        // NewWorldGroupsPerYearMin/Max range let disbanding outpace debuting badly (measured mean
+        // ActiveGroups 114.6 against a WorldGroupCount target of 200). Deterministic given the
+        // active count, not a random roll: BaselineNewGroupsPerYear plus a proportional correction
+        // toward TargetActiveWorldGroups, clamped so a big shortfall can't debut an implausible
+        // flood in one year.
+        private static int CountActiveWorldGroups(GameState state)
+        {
+            int count = 0;
+            for (int i = 0; i < state.Groups.Count; i++)
+            {
+                Group group = state.Groups[i];
+                if (group.IsActive && IsWorldGroup(state, group)) count++;
+            }
+            return count;
         }
 
         private static void EvaluateDebuts(GameState state, List<ProductionCenter> worldCenters, ChartConfig config, SimRandom rng, SimDate now)
         {
-            int count = rng.NextInt(config.NewWorldGroupsPerYearMin, config.NewWorldGroupsPerYearMax + 1);
+            int activeWorldGroups = CountActiveWorldGroups(state);
+            float shortfall = (config.TargetActiveWorldGroups - activeWorldGroups) * config.DebutRateCorrectionGain;
+            float clampedShortfall = shortfall < 0f ? 0f : (shortfall > config.MaxNewWorldGroupsPerYear ? config.MaxNewWorldGroupsPerYear : shortfall);
+            int count = config.BaselineNewGroupsPerYear + (int)clampedShortfall;
 
             for (int i = 0; i < count; i++)
             {

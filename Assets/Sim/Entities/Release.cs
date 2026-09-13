@@ -47,11 +47,32 @@ namespace KpopManager.Core
         // Added in Phase 3b after that bug was caught in the CSV output.
         public GroupTier GroupTierAtRelease { get; set; }
 
+        // ---- Two-curve trajectory (Phase 3b iteration 2) ---------------------------------
+        // Both rolled once at release time and held fixed for the release's whole chart life —
+        // see ChartConfig's own comment for why these are two independent components rather than
+        // one BuzzScore. Kept on Release (not recomputed weekly) so a CSV export can inspect what
+        // kind of release this was without re-deriving it from the group's state at release time.
+        public float FandomPull { get; set; }
+        public float PublicAppeal { get; set; }
+
+        // 1.0 if this release didn't roll a crossover; > 1.0 (CrossoverMultiplierMin..Max) if it
+        // did. Stored rather than just applied invisibly into PublicAppeal so BalanceRunner can
+        // report a real crossover rate instead of inferring it from the appeal value.
+        public float CrossoverMultiplier { get; set; } = 1f;
+
         // ---- Chart history --------------------------------------------------------------
         // Index 0 = release week. 0 at an index means unranked that week.
         public List<int> WeeklyPositions { get; set; } = new List<int>();
 
         public List<float> WeeklyPoints { get; set; } = new List<float>();
+
+        // Phase 3b iteration 3: the competition modifier actually applied that week, index-aligned
+        // with WeeklyPositions/WeeklyPoints. Added so BalanceRunner can report a real mean/p5/p95
+        // of the modifier across a run instead of reconstructing it after the fact — a
+        // reconstruction would need each week's LIVE group tier at the time, which isn't otherwise
+        // recoverable once the group's tier has since changed.
+        public List<float> WeeklyCompetitionModifiers { get; set; } = new List<float>();
+
         public int PeakPosition { get; set; }
         public int WeeksInTop10 { get; set; }
         public int WeeksCharted { get; set; }
@@ -65,12 +86,15 @@ namespace KpopManager.Core
 
         // Whether ChartSystem still actively simulates this release. Not part of the Phase 3a
         // brief's field list — added so a 50-year run doesn't keep recomputing an ever-growing
-        // pile of releases that flatlined to nothing years ago. Set false once WeeksBelowFloor
-        // passes ChartConfig.ChartRetirementWeeksBelowFloor.
+        // pile of releases that flatlined to nothing years ago. Set false once WeeksOffChart
+        // passes ChartConfig.ChartRetirementWeeksOffChart, or once the release has been simulated
+        // for ChartConfig.ChartMaxSimulatedWeeks regardless (Phase 3b iteration 3 fix 2).
         public bool IsCharting { get; set; } = true;
 
-        // Consecutive recent weeks this release's points have sat below the chart floor. Resets
-        // to 0 the moment it charts again. Drives retirement via IsCharting.
-        public int WeeksBelowFloor { get; set; }
+        // Consecutive recent weeks this release held no charted position (position 0 — not merely
+        // low points; see ChartConfig's iteration 3 fix 2 comment for why retirement moved off an
+        // absolute points floor). Resets to 0 the moment it charts again. Drives retirement
+        // alongside ChartConfig.ChartMaxSimulatedWeeks.
+        public int WeeksOffChart { get; set; }
     }
 }

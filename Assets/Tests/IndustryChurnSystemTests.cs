@@ -37,15 +37,47 @@ namespace KpopManager.Tests
         }
 
         [Test]
-        public void NewDebuts_LandInTheConfiguredRange()
+        public void NewDebuts_MatchTheTargetSeekingFormula()
         {
             WorldData data = TestFixtures.BuildWorldData();
             GameState state = BuildStateWithOneWorldCenter(data, out _, out _);
 
             IndustryChurnSystem.Evaluate(state, new SimDate(1, 1));
 
-            Assert.That(state.Groups.Count, Is.InRange(state.ChartConfig.NewWorldGroupsPerYearMin, state.ChartConfig.NewWorldGroupsPerYearMax));
+            // Zero active world groups going in, so the shortfall clamps to MaxNewWorldGroupsPerYear.
+            ChartConfig config = state.ChartConfig;
+            int expected = config.BaselineNewGroupsPerYear + config.MaxNewWorldGroupsPerYear;
+
+            Assert.That(state.Groups.Count, Is.EqualTo(expected));
             Assert.That(state.Groups.All(g => g.Tier == GroupTier.Rookie), Is.True, "new debuts should always start Rookie");
+        }
+
+        [Test]
+        public void NewDebuts_TaperOffAsActiveCountApproachesTarget()
+        {
+            WorldData data = TestFixtures.BuildWorldData();
+            GameState state = BuildStateWithOneWorldCenter(data, out _, out ProductionCenter worldCenter);
+
+            ChartConfig config = state.ChartConfig;
+
+            // Seed exactly TargetActiveWorldGroups active world groups already — the shortfall
+            // should be zero, so only the baseline debuts.
+            for (int i = 0; i < config.TargetActiveWorldGroups; i++)
+            {
+                Group existing = new Group
+                {
+                    Id = 1000 + i, Name = "Existing " + i, CenterId = worldCenter.Id,
+                    Tier = GroupTier.Rising, IsActive = true, DebutDate = SimDate.Start,
+                    ContractExpiry = SimDate.Start.AdvanceYears(7)
+                };
+                state.AddGroup(existing);
+                worldCenter.GroupIds.Add(existing.Id);
+            }
+
+            IndustryChurnSystem.Evaluate(state, new SimDate(1, 1));
+
+            int newDebuts = state.Groups.Count - config.TargetActiveWorldGroups;
+            Assert.That(newDebuts, Is.EqualTo(config.BaselineNewGroupsPerYear));
         }
 
         [Test]

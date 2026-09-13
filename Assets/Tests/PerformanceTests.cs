@@ -44,8 +44,17 @@ namespace KpopManager.Tests
         }
 
         [Test]
-        public void FiftyYearRun_WithAFullWorldAndChartSimulation_CompletesUnderFiveSeconds()
+        public void FiftyYearRun_WithAFullWorldAndChartSimulation_CompletesUnderTwentySeconds()
         {
+            // Phase 3b iteration 2's two-curve trajectory model deliberately keeps far more
+            // releases actively charting for years (PublicDecayK's ~35-week half-life is what
+            // produces Melon-style multi-year long-runners) — measured ~12s for this exact run,
+            // versus roughly 1s under iteration 1's single-curve model, because CompetitionModifier
+            // is O(active releases^2) per week and "active releases" no longer shrinks to a
+            // handful within a few dozen weeks. This is the intended effect of the fix, not a
+            // regression: not preemptively optimized per the iteration 2 brief's own performance
+            // note (report timing; only optimize if a run gets excessive). 20s keeps real margin
+            // over the measured figure without hiding a genuine future blowup.
             WorldData data = TestFixtures.BuildWorldData();
 
             // Warm up so the measurement isn't dominated by JIT.
@@ -60,7 +69,7 @@ namespace KpopManager.Tests
             engine.AdvanceYears(50);
             stopwatch.Stop();
 
-            Assert.That(stopwatch.Elapsed.TotalSeconds, Is.LessThan(5d),
+            Assert.That(stopwatch.Elapsed.TotalSeconds, Is.LessThan(20d),
                 "50-year run with chart simulation took " + stopwatch.Elapsed.TotalSeconds.ToString("F2") + " s.");
         }
     }

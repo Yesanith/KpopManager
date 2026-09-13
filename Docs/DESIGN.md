@@ -154,23 +154,41 @@ A group can have a huge fandom and no public awareness: strong sales, weak chart
 
 Sentiment drops from visible overwork, jarring concept switches, mishandled scandals, unfair line distribution, and merch overload.
 
-## Chart formula (starting point)
+## Chart formula: two curves, not one
+
+Korean digital charts don't behave like the Hot 100, and the formula has to reflect that. Mass
+coordinated fandom streaming and buying ("총공"/"total attack") buys a release's opening week
+regardless of the song — a large fandom guarantees a strong week-1 position, then contributes
+almost nothing afterward, because the fans have already bought. What produces multi-year
+longevity (BTS's "Spring Day": 341 charting weeks) is crossover appeal with the general public,
+which has nothing to do with fandom size. These are two different populations, not two ends of
+one curve: the typical idol comeback spikes and collapses inside a month; the rare crossover hit
+climbs for weeks and then charts for years.
+
+So every release has two independent components instead of one BuzzScore:
 
 ```
-BuzzScore = TrackQuality        * 0.30
-          + ConceptFit          * 0.10
-          + TrendFit            * 0.10
-          + GroupTier           * 0.15
-          + PromotionSpend_norm * 0.15
-          + FandomSize_log      * 0.20
+FandomPull   = NormalizeFandom(fandom size at release)      -- buys the opening
+PublicAppeal = TrackQuality * 0.70 + ConceptFit * 0.15 + TrendFit * 0.15   -- buys the years
+             * CrossoverMultiplier (rare, rolled once at release)
 
-WeeklyPoints = BuzzScore
+WeeklyPoints = ( FandomPull   * exp(-FandomDecayK * weeksSinceRelease)     -- steep, ~2-week half-life
+               + PublicAppeal * BuildCurve(weeksSinceRelease)
+                              * exp(-PublicDecayK * weeksSinceRelease) )   -- shallow, ~35-week half-life
+             * TierBoost(group tier)         -- an established act's reach buys a bigger opening
+             * PromoBoost(promotion spend)   -- promo lifts the whole total, opening and tail alike
              * CompetitionModifier(rival releases this week)
-             * DecayCurve(weeksSinceRelease)
              * RandomVariance(seed, ±12%)
 ```
 
-**Validation:** run 50 simulated years headless, dump chart histories to CSV. If one group always wins, or the results look like noise, the formula is wrong. Fix it in a spreadsheet, not in Unity.
+Fandom and public appeal are deliberately in **tension**: a release optimized purely for the
+fandom (a huge week-one spike, nothing after) and a release optimized purely for crossover appeal
+(a slow-building multi-year run) are both valid strategies, and a title track can't usually be
+both. That tension is the real strategic axis this formula exists to create — not flavour on top
+of a single popularity number.
+
+**Validation:** run 50 simulated years headless, dump chart histories to CSV. If one group always
+wins, or the results look like noise, the formula is wrong. Fix it in a spreadsheet, not in Unity.
 
 ## What you control vs what you request
 
@@ -239,6 +257,11 @@ Steps 1–5 contain no Unity. If it isn't fun as a terminal application, a UI wi
 - Procedurally generated cast, or hand-authored starting characters for flavour?
 - Exact numbers, or FM-style star ratings? Star ratings hide the math and extend replay value.
 - Monetization, if mobile.
+- Real Korean music show wins are multi-factor: digital points, social media views, pre-voting,
+  live voting, broadcast points, and a judges' panel — not a readout of chart position. That
+  belongs in Phase 4's `MusicShowSystem`, not the chart formula above, and it means a music show
+  win is a *different* success axis from the chart, which is worth having on its own rather than
+  collapsing into one number. Recorded here for Phase 4; not implemented yet.
 
 ## Note on the shared core
 

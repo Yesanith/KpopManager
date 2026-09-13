@@ -10,8 +10,8 @@ namespace KpopManager.Core.Systems.Chart
     // If a balance session has to grep the codebase for a number, this class has failed. Plain
     // public fields, not properties — this is a bag of knobs meant to be read and written in
     // bulk (by a balance sweep, eventually by a save file), not an object with behaviour. No
-    // constants live in ChartSystem, ReleaseScheduler, TierSystem, FandomSystem, TrackGenerator
-    // or DecayCurve — every one of them reads from an instance of this class instead.
+    // constants live in ChartSystem, ReleaseScheduler, TierSystem, FandomSystem, or TrackGenerator
+    // — every one of them reads from an instance of this class instead.
     //
     // The starting values below are deliberately untuned. See Docs/BALANCE.md for the tuning log.
     //
@@ -20,39 +20,127 @@ namespace KpopManager.Core.Systems.Chart
     public sealed class ChartConfig
     {
         // -------------------------------------------------------------------------------
-        // BuzzScore term weights — should sum to 1.0, but nothing enforces or requires it;
-        // ChartSystem just scales whatever BuzzScore comes out. DESIGN: revisit every weight
-        // during balancing — these are placeholders straight from the Phase 3a brief.
+        // Phase 3b iteration 2, fix 1: two-curve trajectory model, replacing the single
+        // BuzzScore-times-decay formula. Korean digital charts don't behave like the Hot 100 —
+        // fandom buying ("총공"/"total attack") front-loads a release's first weeks regardless of
+        // the song, while what produces multi-year longevity (BTS's "Spring Day": 341 charting
+        // weeks) is general-public crossover appeal, which is deliberately NOT scaled by fandom
+        // size. One release, two superimposed components with independent decay rates — see
+        // ChartSystem.ComputeFandomPull / ComputePublicAppeal / BuildCurve.
+        //
+        // FandomPull = NormalizeFandom(size) * FandomPullScale — week-one spike potential.
+        //
+        // Phase 3b iteration 4 fix 1: raised 1.0 -> 2.8. At FandomPullScale=1.0, NormalizeFandom's
+        // 100-point cap meant FandomPull maxed out at 100 — well below iteration 3's measured
+        // PointsAtPos10 (~149), so a fandom spike could no longer buy a top-10 debut at ANY fandom
+        // size. That deleted the "total attack" spike population the two-curve model exists to
+        // produce (iteration 3's own highest-FandomPull sample peaked at #10 and slid gently for 13
+        // weeks — an ordinary song, not a spike). At 2.8, a maxed-out FandomPull (280 points) clears
+        // a realistic position-10 cutoff and then FandomDecayK's unchanged 2-week half-life brings
+        // it back down in ~3 weeks, restoring the authentic shape. Do not change FandomDecayK to
+        // compensate — the steep half-life IS the mechanism; only the amplitude was wrong.
         // -------------------------------------------------------------------------------
-        public float WeightTrackQuality = 0.30f;
-        public float WeightConceptFit = 0.10f;
-        public float WeightTrendFit = 0.10f;
+        public float FandomPullScale = 2.8f;
+
+        // PublicAppeal = (qualityTerm*w1 + conceptFit*w2 + trendFit*w3) * PublicAppealScale —
+        // long-tail potential. Deliberately not a function of fandom size at all.
+        public float PublicAppealQualityWeight = 0.70f;
+        public float PublicAppealConceptWeight = 0.15f;
+        public float PublicAppealTrendWeight = 0.15f;
+        public float PublicAppealScale = 1.0f;
+
+        // DESIGN (Phase 3b iteration 4 fix 4): the quality term feeding PublicAppeal is
+        // pow(quality/100, PublicAppealQualityExponent) * 100, not quality itself — a plain linear
+        // term let a Q=20.6 track reach #8 (iteration 3's "Chrome Prologue"), because 20/100 quality
+        // still contributed a full 20% of the max quality term. An exponent > 1 suppresses weak
+        // songs disproportionately (Q=20 -> ~8% of max quality contribution, Q=80 -> ~70%) while
+        // leaving strong songs close to linear, without touching FandomPull — a weak song's fandom
+        // can still buy it a brief spike (realistic), it just can't SUSTAIN a top-10 run on public
+        // appeal alone the way a genuinely good song can.
+        public float PublicAppealQualityExponent = 1.6f;
+
+        // DESIGN: crossover is rare and mostly not under the player's control — a small fraction
+        // of releases get a multiplier on PublicAppeal, representing a song that catches on with
+        // the general public. This is what produces Spring Day-shaped outliers. Rolled once at
+        // release from state.Random; the multiplier (1.0 if it didn't roll) is stored on the
+        // release so it's inspectable in the CSV.
+        //
+        // Phase 3b iteration 4 fix 3: the chance coefficients were miscalibrated since iteration 2
+        // — CrossoverChancePerQuality=0.0006 meant a Q=100 track (6%) was barely more likely to
+        // cross over than a Q=50 track (3%), making crossover close to a quality-independent coin
+        // flip. Since crossover is what drives most of the sim's longevity, Quality -> Longevity
+        // stayed stuck near 0.09 for three iterations no matter what else changed. Raised the
+        // per-quality-point term ~3x and lowered the base ~4x so a Q=50 track crosses over rarely
+        // (0.8%) and a Q=100 track meaningfully more often (9.8%) — crossover chance now actually
+        // gates on quality instead of being decorative.
+        public float CrossoverChanceBase = 0.008f;
+        public float CrossoverChancePerQuality = 0.0018f; // added per point of quality above 50
+
+        // Phase 3b iteration 4 fix 2: lowered from 2.5-6.0 to 1.8-3.2. Combined with PublicDecayK's
+        // unchanged shallow decay, the old range let a crossover hit sit in the top 5 for roughly
+        // fifty consecutive weeks (iteration 3's "Rainy Daylight") — far beyond even Spring Day's
+        // real 341-week *charting* run, which was never a year at #1-#5. The goal is a long CHART
+        // tail (a crossover hit sitting in the top 50-100 for one to three years, which
+        // PublicDecayK's shallow rate still produces on its own) without the same release
+        // monopolizing the top 10 for a year. Only the ceiling on the multiplier's magnitude
+        // changed; its persistence is entirely PublicDecayK's job, and that stays frozen.
+        public float CrossoverMultiplierMin = 1.8f;
+        public float CrossoverMultiplierMax = 3.2f;
+
+        // Fandom component: steep. Half-life ~2 weeks (ln2/0.35) — fans buy immediately, then stop.
+        public float FandomDecayK = 0.35f;
+
+        // Public component: very shallow. Half-life ~35 weeks (ln2/0.02), so a crossover hit can
+        // chart for years the way Melon long-runners do.
+        public float PublicDecayK = 0.020f;
+
+        // DESIGN: linear ramp, not a smoothstep or logistic curve — the public component starts at
+        // PublicBuildFloor and rises to full strength by PublicBuildWeeks because word of mouth
+        // takes time to build, then holds at 1.0 forever after (the shallow PublicDecayK is what
+        // eventually brings it down, not the build curve). Revisit the shape during balancing if a
+        // gentler ramp-in reads better.
+        public int PublicBuildWeeks = 6;
+        public float PublicBuildFloor = 0.25f;
+
+        // DESIGN: promo and tier are modifiers on the summed (fandom + public) total, not additive
+        // BuzzScore terms — promo plausibly boosts both a song's initial push and its ongoing
+        // visibility, so it multiplies the total; tier plausibly only buys a bigger opening (a
+        // Legendary group's existing reach), so it's folded into the fandom side. See
+        // ChartSystem.ComputeWeeklyPoints for exactly where each applies.
         public float WeightGroupTier = 0.15f;
         public float WeightPromoSpend = 0.15f;
-        public float WeightFandom = 0.20f;
 
         // -------------------------------------------------------------------------------
-        // Decay: k = DecayKMax - (quality / 100) * (DecayKMax - DecayKMin). Higher k = faster
-        // collapse. See DecayCurve.
-        // -------------------------------------------------------------------------------
-        public float DecayKMin = 0.08f;
-        public float DecayKMax = 0.45f;
-
-        // -------------------------------------------------------------------------------
-        // Week-one fandom surge: the fandom term's weight is multiplied by this at week 0,
-        // decaying linearly to 1.0 over FandomSurgeDecayWeeks.
-        // -------------------------------------------------------------------------------
-        public float FandomSurgeWeek0 = 2.20f;
-        public float FandomSurgeDecayWeeks = 4f;
-
-        // -------------------------------------------------------------------------------
-        // Competition: modifier = 1 / (1 + c * sumOfRivalBuzzThisWindow / 100). "Rival" here
-        // means any other release whose ReleaseDate falls within CompetitionWindowWeeks of this
-        // release's own ReleaseDate — a debut-timing collision, per DESIGN.md's "drop against a
-        // major group's comeback and you get buried."
+        // Competition. "Rival" means any other release whose ReleaseDate falls within
+        // CompetitionWindowWeeks of this release's own ReleaseDate — a debut-timing collision,
+        // per DESIGN.md's "drop against a major group's comeback and you get buried."
+        //
+        // Phase 3b iteration 3 fix 1: the original modifier (1 / (1 + c * sumOfRivalBuzz / 100))
+        // compared a release against the ABSOLUTE SUM of rival buzz in its window. That sum scales
+        // with world size — growing the world 10x (iteration 2's fix 3) silently divided every
+        // release's points by another ~30x on top of it, because a +/-2-week window went from a
+        // handful of rivals to ~60. Share-based instead: compare against the rival group's MEAN
+        // buzz (population-size-independent) times a "how crowded is this week, relative to
+        // normal" factor, so the modifier is invariant to world size as long as
+        // CompetitionExpectedRivals is scaled proportionally with it. See
+        // ChartSystem.CompetitionModifier for the exact formula and
+        // ChartSystemTests.CompetitionModifier_IsScaleInvariant... for the property this
+        // guarantees.
         // -------------------------------------------------------------------------------
         public float CompetitionStrength = 0.35f;
         public int CompetitionWindowWeeks = 2;
+
+        // DESIGN: the "normal" rival count for a +/-CompetitionWindowWeeks window, calibrated
+        // against WorldGroupCount=200's release volume (~621/year measured in iteration 2). Scale
+        // this proportionally with WorldGroupCount if the world size changes again, or the
+        // crowdedness factor below silently drifts the same way the old sum-based formula did.
+        public int CompetitionExpectedRivals = 24;
+
+        // Bounds on how much an unusually quiet or crowded week can move the modifier, so a
+        // release still gets buried by real competition (DESIGN.md's "drop against a major
+        // group's comeback") without the effect scaling unboundedly with population.
+        public float CompetitionCrowdFactorMin = 0.25f;
+        public float CompetitionCrowdFactorMax = 4.0f;
 
         // -------------------------------------------------------------------------------
         // Variance
@@ -69,12 +157,34 @@ namespace KpopManager.Core.Systems.Chart
         // Chart
         // -------------------------------------------------------------------------------
         public int ChartSize = 100;
+
+        // Too few points to chart at all, regardless of anything else. Separate purpose from
+        // retirement below (iteration 3 fix 2) — this is "not enough to rank," not "simulate this
+        // release any further."
         public float ChartFloorPoints = 0.5f;
 
-        // Consecutive weeks a release must sit below ChartFloorPoints before ChartSystem stops
-        // actively simulating it, so a 50-year run doesn't keep recomputing thousands of
-        // long-dead releases every week.
-        public int ChartRetirementWeeksBelowFloor = 4;
+        // Phase 3b iteration 3 fix 2: retirement now keys off chart PRESENCE (consecutive weeks
+        // with no charted position), not an absolute points floor — the floor no longer bears any
+        // relation to what it actually takes to chart once competition and world size moved
+        // (iteration 2 measured 1,277 mean ActiveReleases/week because releases sat well above
+        // ChartFloorPoints=0.5 for ~200 weeks at PublicDecayK's shallow decay rate while still
+        // failing to CHART at all against everyone else). 12 weeks is deliberately generous so a
+        // slow-building crossover release can climb back in — "Ghost Aftermath" (iteration 2)
+        // charted 270 weeks total and must remain possible.
+        public int ChartRetirementWeeksOffChart = 12;
+
+        // Hard ceiling on how long any release is simulated, as a backstop independent of the
+        // off-chart rule above. Melon's real long-runners top out around 341 weeks (BTS's "Spring
+        // Day"), so nothing here should meaningfully exceed that.
+        public int ChartMaxSimulatedWeeks = 350;
+
+        // Phase 3b iteration 3 fix 4: a release that was off-chart last week must beat this
+        // week's rank-100 cutoff by this margin to re-enter, rather than by a single point — a
+        // release sitting right at the ChartSize cutoff was measured oscillating on random
+        // variance alone ("58, 0, 77, 93, 0" — a song doing nothing, not a real comeback). Applies
+        // only to re-entry, never to a release already charting or debuting for the first time —
+        // the same one-directional-hysteresis shape as TierSystem's TierHysteresisPct.
+        public float ChartReentryMarginPct = 0.15f;
 
         // -------------------------------------------------------------------------------
         // Track generation (TrackGenerator)
@@ -219,15 +329,27 @@ namespace KpopManager.Core.Systems.Chart
         // Industry churn (Phase 3b fix 2b) — nothing previously disbanded a group or debuted a new
         // one, so the "industry" was a fixed cast for 50 years. Scoped to world groups only (not
         // the player's own company's 3 centers) — see IndustryChurnSystem's own DESIGN note.
+        //
+        // Phase 3b iteration 2 fix 3: the fixed NewWorldGroupsPerYearMin/Max roll let disbanding
+        // outpace debuting badly — ActiveGroups settled at a measured mean of 114.6 against a
+        // WorldGroupCount target of 200. Replaced with a target-seeking rate: each year debuts
+        // BaselineNewGroupsPerYear + clamp((TargetActiveWorldGroups - activeWorldGroups) *
+        // DebutRateCorrectionGain, 0, MaxNewWorldGroupsPerYear) Rookie groups, so the population
+        // is pulled back toward its target instead of drifting wherever disbanding happens to land.
         // -------------------------------------------------------------------------------
-        public int NewWorldGroupsPerYearMin = 8;
-        public int NewWorldGroupsPerYearMax = 24;
+        public int TargetActiveWorldGroups = 200;
+        public float DebutRateCorrectionGain = 0.35f;
+        public int MaxNewWorldGroupsPerYear = 40;
+        public int BaselineNewGroupsPerYear = 6;
 
         // Matches DESIGN.md's seven-year contract wall.
         public float DisbandContractYears = 7f;
 
-        // Consecutive years stuck at Rookie tier before a group disbands regardless of contract timing.
-        public int DisbandFailureYears = 3;
+        // Consecutive years stuck at Rookie tier before a group disbands regardless of contract
+        // timing. Iteration 1's value of 3 produced a measured mean group lifespan under six years
+        // (see BALANCE.md) — too aggressive for a group to get a fair run, so this is now higher;
+        // see the balance-sweep note for the exact before/after.
+        public int DisbandFailureYears = 5;
 
         public float DisbandChanceAtContractEnd = 0.55f;
 

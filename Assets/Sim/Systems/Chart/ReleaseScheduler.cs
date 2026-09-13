@@ -48,6 +48,10 @@ namespace KpopManager.Core.Systems.Chart
             track.ComposerId = composerId;
             state.AddTrack(track);
 
+            // Phase 3b iteration 2: both trajectory components are rolled once, here, and held
+            // fixed for the release's whole chart life — see ChartConfig's own comment.
+            float crossoverMultiplier = ChartSystem.RollCrossoverMultiplier(rng, track.Quality, config);
+
             Release release = new Release
             {
                 Id = state.AllocateEntityId(),
@@ -58,7 +62,10 @@ namespace KpopManager.Core.Systems.Chart
                 PromoSpend = ComputePromoSpend(rng, center, group, config),
                 Type = RollReleaseType(rng, config),
                 FandomSizeAtRelease = group.Fandom.Size,
-                GroupTierAtRelease = group.Tier
+                GroupTierAtRelease = group.Tier,
+                FandomPull = ChartSystem.ComputeFandomPull(group.Fandom.Size, config),
+                PublicAppeal = ChartSystem.ComputePublicAppeal(track.Quality, config) * crossoverMultiplier,
+                CrossoverMultiplier = crossoverMultiplier
             };
 
             state.AddRelease(release);
